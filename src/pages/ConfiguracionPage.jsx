@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { Container, Card, Form, Button, Alert, Badge } from "react-bootstrap";
 import { useAuth } from "../context/AuthContext";
-import { ETIQUETA_ROL } from "../data/authMockData";
+import { ETIQUETA_ROL, ROLES } from "../data/authMockData";
 
 export default function ConfiguracionPage() {
   const { usuario, cambiarNombreUsuario, cambiarPassword } = useAuth();
+  // El rol "usuario" solo usa Herramientas — no le corresponde nada de
+  // Google Drive/Contactos, así que ni le mostramos esa sección.
+  const esUsuario = usuario.rol === ROLES.USUARIO;
 
   const [nombreNuevo, setNombreNuevo] = useState(usuario.nombreUsuario);
   const [mensajeNombre, setMensajeNombre] = useState(null); // { tipo, texto }
@@ -116,16 +119,18 @@ export default function ConfiguracionPage() {
         </Card.Body>
       </Card>
 
-      <Card>
-        <Card.Body className="d-flex flex-column gap-2">
-          <Card.Title as="h6">Cuenta de Google</Card.Title>
-          <div className="login-hint small">
-            <i className="bi bi-google me-1" aria-hidden="true" />
-            Próximamente: sincronizar tu cuenta de Google (inicio de sesión y Contactos). Requiere credenciales
-            propias de Google Cloud que todavía no están configuradas.
-          </div>
-        </Card.Body>
-      </Card>
+      {!esUsuario && (
+        <Card>
+          <Card.Body className="d-flex flex-column gap-2">
+            <Card.Title as="h6">Cuenta de Google</Card.Title>
+            <div className="login-hint small">
+              <i className="bi bi-google me-1" aria-hidden="true" />
+              Próximamente: sincronizar tu cuenta de Google (inicio de sesión y Contactos). Requiere credenciales
+              propias de Google Cloud que todavía no están configuradas.
+            </div>
+          </Card.Body>
+        </Card>
+      )}
     </Container>
   );
 }
