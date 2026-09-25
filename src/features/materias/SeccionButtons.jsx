@@ -1,14 +1,18 @@
+import { useState } from "react";
 import { Button } from "react-bootstrap";
 import { useMaterias, refHojaKey } from "../../context/MateriasContext";
+import RegistrarContactoModal from "../ventas/RegistrarContactoModal";
 
 // Botones de estado de una "hoja" (Cátedra sin Comisiones, o una Comisión):
 // - "Seguir editando" (amarillo) navega al Tablero Kanban de esa hoja.
-// - "Compartir" (verde) y "Preparar envío" (cián) arrancan deshabilitados y
-//   se habilitan solo cuando ya hay al menos un archivo en "Listo" (RF-13/14).
+// - "Compartir" (verde) abre el modal de contacto (RegistrarContactoModal) y
+//   recién ahí se comparte de verdad. "Preparar envío" (cián) arrancan
+//   deshabilitados y se habilitan solo cuando ya hay un archivo en "Listo".
 // `refHoja` identifica la hoja en el Context (null en el caso especial de una
 // Materia sin ninguna sección todavía, donde estos botones son solo visuales).
 export default function SeccionButtons({ refHoja, estaListo, vecesCompartido, onSeguirPreparando }) {
-  const { compartir, colaEnvio, agregarAColaEnvio, quitarDeColaEnvio } = useMaterias();
+  const { registrarEnvio, colaEnvio, agregarAColaEnvio, quitarDeColaEnvio } = useMaterias();
+  const [showContacto, setShowContacto] = useState(false);
   const enCola = refHoja != null && colaEnvio.some((r) => refHojaKey(r) === refHojaKey(refHoja));
 
   return (
@@ -23,7 +27,7 @@ export default function SeccionButtons({ refHoja, estaListo, vecesCompartido, on
         size="sm"
         className="btn-seccion fw-semibold rounded-pill"
         disabled={!estaListo}
-        onClick={() => compartir(refHoja)}
+        onClick={() => setShowContacto(true)}
       >
         <i className="bi bi-share-fill me-1" aria-hidden="true" />
         Compartir
@@ -44,6 +48,13 @@ export default function SeccionButtons({ refHoja, estaListo, vecesCompartido, on
         <i className="bi bi-arrow-repeat" aria-hidden="true" />
         {vecesCompartido} {vecesCompartido === 1 ? "vez compartido" : "veces compartido"}
       </span>
+
+      <RegistrarContactoModal
+        show={showContacto}
+        onHide={() => setShowContacto(false)}
+        cantidadResumenes={1}
+        onConfirmar={(contacto) => registrarEnvio(refHoja, contacto)}
+      />
     </div>
   );
 }

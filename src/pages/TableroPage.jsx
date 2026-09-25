@@ -1,12 +1,15 @@
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Container, Alert, Button } from "react-bootstrap";
 import { useMaterias, getHoja, refHojaKey } from "../context/MateriasContext";
 import TableroKanban from "../features/tablero/TableroKanban";
+import RegistrarContactoModal from "../features/ventas/RegistrarContactoModal";
 
 export default function TableroPage() {
   const { materiaId, catedraId, comisionId } = useParams();
   const navigate = useNavigate();
-  const { materias, compartir, colaEnvio, agregarAColaEnvio, quitarDeColaEnvio } = useMaterias();
+  const { materias, registrarEnvio, colaEnvio, agregarAColaEnvio, quitarDeColaEnvio } = useMaterias();
+  const [showContacto, setShowContacto] = useState(false);
 
   const refHoja = {
     materiaId: Number(materiaId),
@@ -48,7 +51,7 @@ export default function TableroPage() {
             className={`btn-compartir-hero fw-semibold ${estaListo ? "btn-compartir-hero--activo" : ""}`}
             variant={estaListo ? "success" : "outline-secondary"}
             disabled={!estaListo}
-            onClick={() => compartir(refHoja)}
+            onClick={() => setShowContacto(true)}
           >
             <i className="bi bi-share-fill me-2" aria-hidden="true" />
             Compartir
@@ -71,6 +74,13 @@ export default function TableroPage() {
       </div>
 
       <TableroKanban hoja={hoja} refHoja={refHoja} />
+
+      <RegistrarContactoModal
+        show={showContacto}
+        onHide={() => setShowContacto(false)}
+        cantidadResumenes={1}
+        onConfirmar={(contacto) => registrarEnvio(refHoja, contacto)}
+      />
     </Container>
   );
 }

@@ -1,5 +1,5 @@
 import { createContext, useContext, useReducer, useCallback, useState } from "react";
-import { materiasIniciales, generarId } from "../data/mockData";
+import { materiasIniciales, enviosIniciales, generarId } from "../data/mockData";
 
 const MateriasContext = createContext(null);
 
@@ -180,6 +180,9 @@ export function MateriasProvider({ children }) {
   // Vive aparte del reducer de materias porque es una selección temporal de UI,
   // no un dato del dominio (no se guarda como parte de ninguna materia).
   const [colaEnvio, setColaEnvio] = useState([]);
+  // Envíos: historial de "a quién se le compartió qué resumen" (pestaña Ventas).
+  // Igual que colaEnvio, vive aparte porque no es un dato de una Materia puntual.
+  const [envios, setEnvios] = useState(enviosIniciales);
 
   // Las 3 acciones de creación generan el id ANTES de despachar y lo devuelven:
   // así el componente que las llama (ej. "Seguir preparando" con 0 cátedras)
@@ -209,6 +212,38 @@ export function MateriasProvider({ children }) {
     []
   );
   const compartir = useCallback((ref) => dispatch({ type: "COMPARTIR", payload: { ref } }), []);
+
+  // Comparte una hoja Y deja registrado a quién se le mandó (pestaña Ventas).
+  // Usa `materias` del closure para resolver los nombres — está bien porque
+  // solo se llama sincrónicamente, nunca dentro de otro update en curso.
+  const registrarEnvio = useCallback(
+    (ref, { contactoNombre, contactoTelefono, precio }) => {
+      const materia = materias.find((m) => m.id === ref.materiaId);
+      const catedra = materia?.catedras.find((c) => c.id === ref.catedraId);
+      const hoja = getHoja(materias, ref);
+      if (!materia || !catedra || !hoja) return;
+
+      const nuevoEnvio = {
+        id: generarId(),
+        contactoNombre,
+        contactoTelefono,
+        precio: precio || null,
+        materiaId: materia.id,
+        materiaNombre: materia.nombre,
+        catedraId: catedra.id,
+        catedraNombre: catedra.nombre,
+        comisionId: ref.comisionId ?? null,
+        comisionNombre: ref.comisionId != null ? hoja.nombre : null,
+        resumenNombre: hoja.nombre,
+        anio: materia.anio,
+        fecha: new Date().toISOString().slice(0, 10),
+      };
+
+      setEnvios((prev) => [nuevoEnvio, ...prev]);
+      dispatch({ type: "COMPARTIR", payload: { ref } });
+    },
+    [materias]
+  );
   const editarMateria = useCallback(
     (materiaId, nombre) => dispatch({ type: "EDITAR_MATERIA", payload: { materiaId, nombre } }),
     []
@@ -229,12 +264,16 @@ export function MateriasProvider({ children }) {
     setColaEnvio((prev) => prev.filter((r) => refHojaKey(r) !== refHojaKey(ref)));
   }, []);
   const vaciarColaEnvio = useCallback(() => setColaEnvio([]), []);
-  // "Compartir todo": comparte cada resumen seleccionado (mismo efecto que tocar
-  // "Compartir" en cada uno, uno por uno) y después vacía la cola.
-  const compartirCola = useCallback(() => {
-    colaEnvio.forEach((ref) => dispatch({ type: "COMPARTIR", payload: { ref } }));
-    setColaEnvio([]);
-  }, [colaEnvio]);
+  // "Compartir todo": registra UN envío por cada resumen seleccionado, todos
+  // con el mismo contacto (se asume que se le mandan juntos a esa persona), y
+  // después vacía la cola.
+  const compartirCola = useCallback(
+    (contacto) => {
+      colaEnvio.forEach((ref) => registrarEnvio(ref, contacto));
+      setColaEnvio([]);
+    },
+    [colaEnvio, registrarEnvio]
+  );
 
   const value = {
     materias,
@@ -245,6 +284,7 @@ export function MateriasProvider({ children }) {
     moverArchivo,
     eliminarArchivo,
     compartir,
+    registrarEnvio,
     editarMateria,
     editarCatedra,
     colaEnvio,
@@ -252,6 +292,7 @@ export function MateriasProvider({ children }) {
     quitarDeColaEnvio,
     vaciarColaEnvio,
     compartirCola,
+    envios,
   };
 
   return <MateriasContext.Provider value={value}>{children}</MateriasContext.Provider>;
@@ -288,4 +329,17 @@ export function contarComparticionesTotales(materia) {
     }
     return total + catedra.vecesCompartido;
   }, 0);
+}
+
+// Contactos únicos ya usados en algún envío (por teléfono), más recientes
+// primero — alimenta el autocompletado del modal de "Registrar contacto".
+export function contactosGuardados(envios) {
+  const vistos = new Map();
+  for (const envio of envios) {
+    const clave = envio.contactoTelefono || envio.contactoNombre;
+    if (!vistos.has(clave)) {
+      vistos.set(clave, { nombre: envio.contactoNombre, telefono: envio.contactoTelefono });
+    }
+  }
+  return Array.from(vistos.values());
 }

@@ -48,6 +48,15 @@ body {
   font-weight: 600;
 }
 
+/* --- Ventas: tira de "últimos compartidos" --- */
+.ultimos-envios-strip {
+  scrollbar-width: thin;
+}
+
+.ultimo-envio-card {
+  width: 220px;
+}
+
 /* --- Login --- */
 .login-page {
   min-height: 100svh;
