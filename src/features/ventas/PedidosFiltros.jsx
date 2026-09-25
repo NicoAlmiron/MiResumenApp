@@ -1,5 +1,6 @@
 import { Form, Row, Col, Button } from "react-bootstrap";
 import { ANIOS_CURSADA, labelAnio } from "../../utils/anioCursada";
+import RangoFechaPicker from "./RangoFechaPicker";
 
 export const FILTROS_VACIOS = {
   busqueda: "",
@@ -103,22 +104,11 @@ export default function PedidosFiltros({ materias, filtros, onFiltrosChange }) {
           </Form.Select>
         </Col>
 
-        <Col xs={6} md="auto">
-          <Form.Control
-            type="date"
-            value={filtros.fechaDesde}
-            max={filtros.fechaHasta || undefined}
-            onChange={(e) => actualizar("fechaDesde", e.target.value)}
-            title="Desde"
-          />
-        </Col>
-        <Col xs={6} md="auto">
-          <Form.Control
-            type="date"
-            value={filtros.fechaHasta}
-            min={filtros.fechaDesde || undefined}
-            onChange={(e) => actualizar("fechaHasta", e.target.value)}
-            title="Hasta"
+        <Col xs="auto">
+          <RangoFechaPicker
+            desde={filtros.fechaDesde}
+            hasta={filtros.fechaHasta}
+            onCambiar={(cambios) => onFiltrosChange({ ...filtros, ...cambios })}
           />
         </Col>
 
