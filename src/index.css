@@ -48,6 +48,29 @@ body {
   font-weight: 600;
 }
 
+/* --- Login --- */
+.login-page {
+  min-height: 100svh;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 380px;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45);
+}
+
+.login-hint {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px dashed var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  padding: 0.5rem 0.75rem;
+  color: var(--bs-body-color);
+}
+
+.login-hint code {
+  color: var(--bs-info);
+}
+
 /* --- Botón de la cola de envío (navbar) --- */
 .navbar-cola-btn {
   position: relative;
