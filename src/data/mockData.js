@@ -49,7 +49,7 @@ export const materiasIniciales = [
             id: 1,
             nombre: "Comisión 1",
             turno: "Mañana",
-            vecesCompartido: 0,
+            vecesCompartido: 1,
             tablero: tableroVacio(),
           },
           {
@@ -87,67 +87,94 @@ export const materiasIniciales = [
   },
 ];
 
-// Envíos de ejemplo (coherentes con los vecesCompartido de arriba: 3 para
-// Cátedra A, 1 para Comisión 2), para que la pestaña Ventas no arranque vacía.
-export const enviosIniciales = [
+// Un "resumen" dentro de un pedido: qué Cátedra/Comisión puntual se mandó.
+function itemResumen({ materiaId, materiaNombre, catedraId, catedraNombre, comisionId = null, comisionNombre = null, resumenNombre, anio }) {
+  return { materiaId, materiaNombre, catedraId, catedraNombre, comisionId, comisionNombre, resumenNombre, anio };
+}
+
+// Pedidos de ejemplo (coherentes con los vecesCompartido de arriba: 3 para
+// Cátedra A, 1 para Comisión 1, 1 para Comisión 2), para que la pestaña
+// Ventas no arranque vacía. Un pedido = un contacto + fecha + los resúmenes
+// que se le mandaron juntos en esa tanda (por eso Martín tiene 2 adentro).
+export const pedidosIniciales = [
   {
     id: 1,
     contactoNombre: "Julieta Sosa",
     contactoTelefono: "381 555-1234",
     precio: 500,
-    materiaId: 1,
-    materiaNombre: "Derecho Civil I",
-    catedraId: 1,
-    catedraNombre: "Cátedra A",
-    comisionId: null,
-    comisionNombre: null,
-    resumenNombre: "Cátedra A",
-    anio: 1,
     fecha: "2026-09-21",
+    resumenes: [
+      itemResumen({
+        materiaId: 1,
+        materiaNombre: "Derecho Civil I",
+        catedraId: 1,
+        catedraNombre: "Cátedra A",
+        resumenNombre: "Cátedra A",
+        anio: 1,
+      }),
+    ],
   },
   {
     id: 2,
     contactoNombre: "Martín Ibáñez",
     contactoTelefono: "381 555-9876",
-    precio: 500,
-    materiaId: 1,
-    materiaNombre: "Derecho Civil I",
-    catedraId: 1,
-    catedraNombre: "Cátedra A",
-    comisionId: null,
-    comisionNombre: null,
-    resumenNombre: "Cátedra A",
-    anio: 1,
+    precio: 900,
     fecha: "2026-09-20",
+    resumenes: [
+      itemResumen({
+        materiaId: 1,
+        materiaNombre: "Derecho Civil I",
+        catedraId: 1,
+        catedraNombre: "Cátedra A",
+        resumenNombre: "Cátedra A",
+        anio: 1,
+      }),
+      itemResumen({
+        materiaId: 1,
+        materiaNombre: "Derecho Civil I",
+        catedraId: 2,
+        catedraNombre: "Cátedra B",
+        comisionId: 1,
+        comisionNombre: "Comisión 1",
+        resumenNombre: "Comisión 1",
+        anio: 1,
+      }),
+    ],
   },
   {
     id: 3,
     contactoNombre: "Sofía Aguirre",
     contactoTelefono: "381 555-4321",
     precio: null,
-    materiaId: 1,
-    materiaNombre: "Derecho Civil I",
-    catedraId: 1,
-    catedraNombre: "Cátedra A",
-    comisionId: null,
-    comisionNombre: null,
-    resumenNombre: "Cátedra A",
-    anio: 1,
     fecha: "2026-09-19",
+    resumenes: [
+      itemResumen({
+        materiaId: 1,
+        materiaNombre: "Derecho Civil I",
+        catedraId: 1,
+        catedraNombre: "Cátedra A",
+        resumenNombre: "Cátedra A",
+        anio: 1,
+      }),
+    ],
   },
   {
     id: 4,
     contactoNombre: "Julieta Sosa",
     contactoTelefono: "381 555-1234",
     precio: 600,
-    materiaId: 1,
-    materiaNombre: "Derecho Civil I",
-    catedraId: 2,
-    catedraNombre: "Cátedra B",
-    comisionId: 2,
-    comisionNombre: "Comisión 2",
-    resumenNombre: "Comisión 2",
-    anio: 1,
     fecha: "2026-09-16",
+    resumenes: [
+      itemResumen({
+        materiaId: 1,
+        materiaNombre: "Derecho Civil I",
+        catedraId: 2,
+        catedraNombre: "Cátedra B",
+        comisionId: 2,
+        comisionNombre: "Comisión 2",
+        resumenNombre: "Comisión 2",
+        anio: 1,
+      }),
+    ],
   },
 ];

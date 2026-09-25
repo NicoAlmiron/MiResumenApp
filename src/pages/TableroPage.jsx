@@ -8,7 +8,7 @@ import RegistrarContactoModal from "../features/ventas/RegistrarContactoModal";
 export default function TableroPage() {
   const { materiaId, catedraId, comisionId } = useParams();
   const navigate = useNavigate();
-  const { materias, registrarEnvio, colaEnvio, agregarAColaEnvio, quitarDeColaEnvio } = useMaterias();
+  const { materias, registrarPedido, colaEnvio, agregarAColaEnvio, quitarDeColaEnvio } = useMaterias();
   const [showContacto, setShowContacto] = useState(false);
 
   const refHoja = {
@@ -79,7 +79,7 @@ export default function TableroPage() {
         show={showContacto}
         onHide={() => setShowContacto(false)}
         cantidadResumenes={1}
-        onConfirmar={(contacto) => registrarEnvio(refHoja, contacto)}
+        onConfirmar={(contacto) => registrarPedido([refHoja], contacto)}
       />
     </Container>
   );

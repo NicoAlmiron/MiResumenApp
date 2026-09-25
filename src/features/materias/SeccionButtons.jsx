@@ -11,7 +11,7 @@ import RegistrarContactoModal from "../ventas/RegistrarContactoModal";
 // `refHoja` identifica la hoja en el Context (null en el caso especial de una
 // Materia sin ninguna sección todavía, donde estos botones son solo visuales).
 export default function SeccionButtons({ refHoja, estaListo, vecesCompartido, onSeguirPreparando }) {
-  const { registrarEnvio, colaEnvio, agregarAColaEnvio, quitarDeColaEnvio } = useMaterias();
+  const { registrarPedido, colaEnvio, agregarAColaEnvio, quitarDeColaEnvio } = useMaterias();
   const [showContacto, setShowContacto] = useState(false);
   const enCola = refHoja != null && colaEnvio.some((r) => refHojaKey(r) === refHojaKey(refHoja));
 
@@ -53,7 +53,7 @@ export default function SeccionButtons({ refHoja, estaListo, vecesCompartido, on
         show={showContacto}
         onHide={() => setShowContacto(false)}
         cantidadResumenes={1}
-        onConfirmar={(contacto) => registrarEnvio(refHoja, contacto)}
+        onConfirmar={(contacto) => registrarPedido([refHoja], contacto)}
       />
     </div>
   );

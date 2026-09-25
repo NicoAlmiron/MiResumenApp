@@ -1,5 +1,5 @@
 import { createContext, useContext, useReducer, useCallback, useState } from "react";
-import { materiasIniciales, enviosIniciales, generarId } from "../data/mockData";
+import { materiasIniciales, pedidosIniciales, generarId } from "../data/mockData";
 
 const MateriasContext = createContext(null);
 
@@ -180,9 +180,12 @@ export function MateriasProvider({ children }) {
   // Vive aparte del reducer de materias porque es una selección temporal de UI,
   // no un dato del dominio (no se guarda como parte de ninguna materia).
   const [colaEnvio, setColaEnvio] = useState([]);
-  // Envíos: historial de "a quién se le compartió qué resumen" (pestaña Ventas).
-  // Igual que colaEnvio, vive aparte porque no es un dato de una Materia puntual.
-  const [envios, setEnvios] = useState(enviosIniciales);
+  // Pedidos: historial de "a quién se le compartió qué resumen(es)" (pestaña
+  // Ventas). Un pedido agrupa TODOS los resúmenes que se mandaron juntos en
+  // una misma tanda (por eso "Compartir todo" de la cola arma un solo pedido
+  // con varios resúmenes adentro, en vez de uno por cada uno). Igual que
+  // colaEnvio, vive aparte porque no es un dato de una Materia puntual.
+  const [pedidos, setPedidos] = useState(pedidosIniciales);
 
   // Las 3 acciones de creación generan el id ANTES de despachar y lo devuelven:
   // así el componente que las llama (ej. "Seguir preparando" con 0 cátedras)
@@ -211,36 +214,43 @@ export function MateriasProvider({ children }) {
       dispatch({ type: "MOVER_ARCHIVO", payload: { ref, archivoId, columnaOrigen, columnaDestino } }),
     []
   );
-  const compartir = useCallback((ref) => dispatch({ type: "COMPARTIR", payload: { ref } }), []);
+  // Comparte una o varias hojas de una sola vez, agrupadas en UN pedido (un
+  // contacto + una fecha + la lista de resúmenes mandados juntos), y deja el
+  // registro para la pestaña Ventas. Usa `materias` del closure para resolver
+  // los nombres — está bien porque solo se llama sincrónicamente.
+  const registrarPedido = useCallback(
+    (refs, { contactoNombre, contactoTelefono, precio }) => {
+      const resumenes = refs
+        .map((ref) => {
+          const materia = materias.find((m) => m.id === ref.materiaId);
+          const catedra = materia?.catedras.find((c) => c.id === ref.catedraId);
+          const hoja = getHoja(materias, ref);
+          if (!materia || !catedra || !hoja) return null;
+          return {
+            materiaId: materia.id,
+            materiaNombre: materia.nombre,
+            catedraId: catedra.id,
+            catedraNombre: catedra.nombre,
+            comisionId: ref.comisionId ?? null,
+            comisionNombre: ref.comisionId != null ? hoja.nombre : null,
+            resumenNombre: hoja.nombre,
+            anio: materia.anio,
+          };
+        })
+        .filter(Boolean);
+      if (resumenes.length === 0) return;
 
-  // Comparte una hoja Y deja registrado a quién se le mandó (pestaña Ventas).
-  // Usa `materias` del closure para resolver los nombres — está bien porque
-  // solo se llama sincrónicamente, nunca dentro de otro update en curso.
-  const registrarEnvio = useCallback(
-    (ref, { contactoNombre, contactoTelefono, precio }) => {
-      const materia = materias.find((m) => m.id === ref.materiaId);
-      const catedra = materia?.catedras.find((c) => c.id === ref.catedraId);
-      const hoja = getHoja(materias, ref);
-      if (!materia || !catedra || !hoja) return;
-
-      const nuevoEnvio = {
+      const nuevoPedido = {
         id: generarId(),
         contactoNombre,
         contactoTelefono,
         precio: precio || null,
-        materiaId: materia.id,
-        materiaNombre: materia.nombre,
-        catedraId: catedra.id,
-        catedraNombre: catedra.nombre,
-        comisionId: ref.comisionId ?? null,
-        comisionNombre: ref.comisionId != null ? hoja.nombre : null,
-        resumenNombre: hoja.nombre,
-        anio: materia.anio,
         fecha: new Date().toISOString().slice(0, 10),
+        resumenes,
       };
 
-      setEnvios((prev) => [nuevoEnvio, ...prev]);
-      dispatch({ type: "COMPARTIR", payload: { ref } });
+      setPedidos((prev) => [nuevoPedido, ...prev]);
+      refs.forEach((ref) => dispatch({ type: "COMPARTIR", payload: { ref } }));
     },
     [materias]
   );
@@ -264,15 +274,14 @@ export function MateriasProvider({ children }) {
     setColaEnvio((prev) => prev.filter((r) => refHojaKey(r) !== refHojaKey(ref)));
   }, []);
   const vaciarColaEnvio = useCallback(() => setColaEnvio([]), []);
-  // "Compartir todo": registra UN envío por cada resumen seleccionado, todos
-  // con el mismo contacto (se asume que se le mandan juntos a esa persona), y
-  // después vacía la cola.
+  // "Compartir todo": arma UN pedido con todos los resúmenes de la cola (se
+  // asume que se le mandan juntos a esa persona) y vacía la cola.
   const compartirCola = useCallback(
     (contacto) => {
-      colaEnvio.forEach((ref) => registrarEnvio(ref, contacto));
+      registrarPedido(colaEnvio, contacto);
       setColaEnvio([]);
     },
-    [colaEnvio, registrarEnvio]
+    [colaEnvio, registrarPedido]
   );
 
   const value = {
@@ -283,8 +292,7 @@ export function MateriasProvider({ children }) {
     subirArchivos,
     moverArchivo,
     eliminarArchivo,
-    compartir,
-    registrarEnvio,
+    registrarPedido,
     editarMateria,
     editarCatedra,
     colaEnvio,
@@ -292,7 +300,7 @@ export function MateriasProvider({ children }) {
     quitarDeColaEnvio,
     vaciarColaEnvio,
     compartirCola,
-    envios,
+    pedidos,
   };
 
   return <MateriasContext.Provider value={value}>{children}</MateriasContext.Provider>;
@@ -331,14 +339,14 @@ export function contarComparticionesTotales(materia) {
   }, 0);
 }
 
-// Contactos únicos ya usados en algún envío (por teléfono), más recientes
+// Contactos únicos ya usados en algún pedido (por teléfono), más recientes
 // primero — alimenta el autocompletado del modal de "Registrar contacto".
-export function contactosGuardados(envios) {
+export function contactosGuardados(pedidos) {
   const vistos = new Map();
-  for (const envio of envios) {
-    const clave = envio.contactoTelefono || envio.contactoNombre;
+  for (const pedido of pedidos) {
+    const clave = pedido.contactoTelefono || pedido.contactoNombre;
     if (!vistos.has(clave)) {
-      vistos.set(clave, { nombre: envio.contactoNombre, telefono: envio.contactoTelefono });
+      vistos.set(clave, { nombre: pedido.contactoNombre, telefono: pedido.contactoTelefono });
     }
   }
   return Array.from(vistos.values());

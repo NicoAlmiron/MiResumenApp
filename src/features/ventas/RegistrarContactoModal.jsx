@@ -12,12 +12,12 @@ import { useMaterias, contactosGuardados } from "../../context/MateriasContext";
 // generar acá. El autocompletado local cubre mientras tanto la parte más
 // repetitiva (no volver a tipear el mismo contacto).
 export default function RegistrarContactoModal({ show, onHide, cantidadResumenes = 1, onConfirmar }) {
-  const { envios } = useMaterias();
+  const { pedidos } = useMaterias();
   const [contactoNombre, setContactoNombre] = useState("");
   const [contactoTelefono, setContactoTelefono] = useState("");
   const [precio, setPrecio] = useState("");
 
-  const contactos = contactosGuardados(envios);
+  const contactos = contactosGuardados(pedidos);
 
   function limpiarYCerrar() {
     setContactoNombre("");
