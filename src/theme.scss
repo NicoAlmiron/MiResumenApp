@@ -1,40 +1,34 @@
 // Tema de MiResumenApp: oscuro y alegre, azul + cián.
-// Estas son variables *Sass* de Bootstrap: se usan para compilar todo bootstrap
-// (botones, navbar, cards, modales...) ya con nuestra paleta, en vez de solo
-// pisar colores por encima con CSS suelto.
+// `@use ... with (...)` es la forma moderna de compilar Bootstrap con
+// variables propias (reemplaza a `@import` + redefinir variables antes,
+// que Dart Sass ya marca como deprecado de cara a la versión 3.0).
+@use "bootstrap/scss/bootstrap" with (
+  // Colores base: azul rico/saturado (no un gris-azulado plano), para que
+  // se sienta "alegre" sin perder oscuridad (luminosidad baja, el contraste
+  // con el texto claro no se resiente).
+  $primary: #3b82f6, // azul vibrante — navbar activo, botones principales
+  $info: #22d3ee, // cián — hovers, links, badges informativos
+  $warning: #fbbf24, // amarillo — botón "Seguir editando"
+  $success: #22c55e, // verde — botón "Compartir"
+  $danger: #f87171,
 
-// Colores base — azul rico/saturado (no un gris-azulado plano), para que
-// se sienta "alegre" sin perder oscuridad (luminosidad baja, el contraste
-// con el texto claro no se resiente).
-$azul-fondo: #10193a;
-$azul-superficie: #1b2748;
-$azul-borde: #2c3f6e;
-$texto-claro: #e7ecf9;
+  $body-bg: #10193a,
+  $body-color: #e7ecf9,
+  $border-color: #2c3f6e,
 
-$primary: #3b82f6; // azul vibrante — navbar activo, botones principales
-$info: #22d3ee; // cián — hovers, links, badges informativos
-$warning: #fbbf24; // amarillo — botón "Seguir editando"
-$success: #22c55e; // verde — botón "Compartir"
-$danger: #f87171;
+  // Componentes: fondo de navbar y cards un tono más claro que el body,
+  // para que se note la jerarquía visual sin perder el look oscuro.
+  $card-bg: #1b2748,
+  $card-border-color: #2c3f6e,
+  $modal-content-bg: #1b2748,
+  $modal-content-border-color: #2c3f6e,
+  $dropdown-bg: #1b2748,
+  $input-bg: #10193a,
+  $input-border-color: #2c3f6e,
+  $input-color: #e7ecf9,
 
-$body-bg: $azul-fondo;
-$body-color: $texto-claro;
-$border-color: $azul-borde;
-
-// Componentes: fondo de navbar y cards un tono más claro que el body,
-// para que se note la jerarquía visual sin perder el look oscuro.
-$card-bg: $azul-superficie;
-$card-border-color: $azul-borde;
-$modal-content-bg: $azul-superficie;
-$modal-content-border-color: $azul-borde;
-$dropdown-bg: $azul-superficie;
-$input-bg: $azul-fondo;
-$input-border-color: $azul-borde;
-$input-color: $texto-claro;
-
-// Bordes/objetos redondeados: look más "alegre", menos cuadrado
-$border-radius: 0.6rem;
-$border-radius-lg: 0.85rem;
-$btn-border-radius: 0.5rem;
-
-@import "bootstrap/scss/bootstrap";
+  // Bordes/objetos redondeados: look más "alegre", menos cuadrado
+  $border-radius: 0.6rem,
+  $border-radius-lg: 0.85rem,
+  $btn-border-radius: 0.5rem
+);
