@@ -1,0 +1,58 @@
+import { DragDropContext } from "@hello-pangea/dnd";
+import { useMaterias } from "../../context/MateriasContext";
+import { generarId } from "../../data/mockData";
+import ColumnaTablero from "./ColumnaTablero";
+
+const COLUMNAS = [
+  { key: "documentos", titulo: "Documentos necesarios" },
+  { key: "enEdicion", titulo: "Para modificaciones" },
+  { key: "listo", titulo: "Listo para compartir" },
+];
+
+// Tablero Kanban de 3 columnas fijas de una hoja (Cátedra sin Comisiones, o
+// Comisión). `hoja` es el objeto con `.tablero`, `refHoja` identifica a esa
+// hoja dentro del Context para poder despachar acciones sobre ella.
+export default function TableroKanban({ hoja, refHoja }) {
+  const { moverArchivo, subirArchivos, eliminarArchivo } = useMaterias();
+
+  function handleDragEnd(result) {
+    const { source, destination, draggableId } = result;
+    if (!destination) return; // se soltó fuera de cualquier columna
+    if (source.droppableId === destination.droppableId) return; // reordenar dentro de la misma columna: no-op por ahora
+    moverArchivo(refHoja, Number(draggableId), source.droppableId, destination.droppableId);
+  }
+
+  function handleSubir(columnaKey, fileList) {
+    const nuevosArchivos = Array.from(fileList).map((file) => ({
+      id: generarId(),
+      nombre: file.name,
+      extension: file.name.split(".").pop(),
+      fechaActualizado: new Date().toISOString().slice(0, 10),
+      archivoOriginal: file, // se guarda el File real para poder descargarlo después
+    }));
+    subirArchivos(refHoja, columnaKey, nuevosArchivos);
+  }
+
+  return (
+    <DragDropContext onDragEnd={handleDragEnd}>
+      <div className="kanban-tablero">
+        {COLUMNAS.map((columna, index) => {
+          const siguiente = COLUMNAS[index + 1]?.key ?? null;
+          return (
+            <ColumnaTablero
+              key={columna.key}
+              columnaKey={columna.key}
+              titulo={columna.titulo}
+              archivos={hoja.tablero[columna.key]}
+              permiteSubir={columna.key !== "listo"}
+              onSubirArchivos={(files) => handleSubir(columna.key, files)}
+              hayColumnaSiguiente={siguiente != null}
+              onMoverSiguiente={(archivoId) => moverArchivo(refHoja, archivoId, columna.key, siguiente)}
+              onEliminar={(archivoId) => eliminarArchivo(refHoja, columna.key, archivoId)}
+            />
+          );
+        })}
+      </div>
+    </DragDropContext>
+  );
+}

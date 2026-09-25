@@ -1,0 +1,76 @@
+import { useParams, useNavigate } from "react-router-dom";
+import { Container, Alert, Button } from "react-bootstrap";
+import { useMaterias, getHoja, refHojaKey } from "../context/MateriasContext";
+import TableroKanban from "../features/tablero/TableroKanban";
+
+export default function TableroPage() {
+  const { materiaId, catedraId, comisionId } = useParams();
+  const navigate = useNavigate();
+  const { materias, compartir, colaEnvio, agregarAColaEnvio, quitarDeColaEnvio } = useMaterias();
+
+  const refHoja = {
+    materiaId: Number(materiaId),
+    catedraId: Number(catedraId),
+    comisionId: comisionId != null ? Number(comisionId) : null,
+  };
+
+  const materia = materias.find((m) => m.id === refHoja.materiaId);
+  const hoja = getHoja(materias, refHoja);
+
+  if (!materia || !hoja) {
+    return (
+      <Container className="py-5">
+        <Alert variant="warning">No se encontró este tablero.</Alert>
+        <Button variant="outline-light" onClick={() => navigate("/resumenes")}>
+          ← Volver a Resúmenes
+        </Button>
+      </Container>
+    );
+  }
+
+  const estaListo = hoja.tablero.listo.length > 0;
+  const enCola = colaEnvio.some((r) => refHojaKey(r) === refHojaKey(refHoja));
+
+  return (
+    <Container fluid className="py-4 px-3 px-md-4">
+      <div className="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
+        <div>
+          <Button variant="link" className="p-0 mb-1 text-decoration-none" onClick={() => navigate("/resumenes")}>
+            ← Resúmenes
+          </Button>
+          <h2 className="mb-0">
+            {materia.nombre} <span className="text-body-secondary">·</span> {hoja.nombre}
+          </h2>
+        </div>
+
+        <div className="d-flex flex-wrap align-items-center gap-2">
+          <Button
+            className={`btn-compartir-hero fw-semibold ${estaListo ? "btn-compartir-hero--activo" : ""}`}
+            variant={estaListo ? "success" : "outline-secondary"}
+            disabled={!estaListo}
+            onClick={() => compartir(refHoja)}
+          >
+            <i className="bi bi-share-fill me-2" aria-hidden="true" />
+            Compartir
+          </Button>
+
+          <Button
+            variant={enCola ? "info" : "outline-info"}
+            className="fw-semibold rounded-pill btn-seccion"
+            disabled={!estaListo}
+            onClick={() => (enCola ? quitarDeColaEnvio(refHoja) : agregarAColaEnvio(refHoja))}
+          >
+            <i className={`bi ${enCola ? "bi-check-circle-fill" : "bi-send-plus-fill"} me-2`} aria-hidden="true" />
+            {enCola ? "En la lista" : "Preparar envío"}
+          </Button>
+
+          <span className="text-body-secondary small">
+            {hoja.vecesCompartido} {hoja.vecesCompartido === 1 ? "vez compartido" : "veces compartido"}
+          </span>
+        </div>
+      </div>
+
+      <TableroKanban hoja={hoja} refHoja={refHoja} />
+    </Container>
+  );
+}
