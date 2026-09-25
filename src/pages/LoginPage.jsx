@@ -13,9 +13,10 @@ export default function LoginPage() {
   const [error, setError] = useState("");
 
   // Ya logueado y entró a /login igual (por ejemplo, escribiendo la URL a
-  // mano): lo mandamos derecho a donde iba, o a Resúmenes por defecto.
+  // mano): lo mandamos derecho a donde iba, o a "/" (IndexRedirect decide
+  // según el rol) por defecto.
   if (estaAutenticado) {
-    const destino = location.state?.from?.pathname ?? "/resumenes";
+    const destino = location.state?.from?.pathname ?? "/";
     return <Navigate to={destino} replace />;
   }
 
@@ -26,7 +27,7 @@ export default function LoginPage() {
       setError("Usuario o contraseña incorrectos.");
       return;
     }
-    const destino = location.state?.from?.pathname ?? "/resumenes";
+    const destino = location.state?.from?.pathname ?? "/";
     navigate(destino, { replace: true });
   }
 
@@ -75,9 +76,20 @@ export default function LoginPage() {
             </Button>
           </Form>
 
-          <div className="login-hint mt-4 text-center small">
+          <div className="login-hint mt-4 small">
             <i className="bi bi-info-circle me-1" aria-hidden="true" />
-            Usuario de prueba: <code>admin</code> / <code>admin123</code>
+            Usuarios de prueba (uno por rol):
+            <ul className="mb-0 mt-1 ps-3">
+              <li>
+                <code>admin</code> / <code>admin123</code> — Administrador
+              </li>
+              <li>
+                <code>boss</code> / <code>boss123</code> — Boss
+              </li>
+              <li>
+                <code>usuario</code> / <code>usuario123</code> — Usuario
+              </li>
+            </ul>
           </div>
         </Card.Body>
       </Card>

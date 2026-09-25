@@ -169,6 +169,78 @@ function reducer(materias, action) {
       );
     }
 
+    // A partir de acá: acciones del backoffice (editar todos los campos,
+    // eliminar). Las de arriba las usa el flujo normal de Resúmenes.
+    case "EDITAR_MATERIA_COMPLETA": {
+      const { materiaId, cambios } = action.payload;
+      return materias.map((materia) => (materia.id !== materiaId ? materia : { ...materia, ...cambios }));
+    }
+
+    case "EDITAR_CATEDRA_COMPLETA": {
+      const { materiaId, catedraId, cambios } = action.payload;
+      return materias.map((materia) =>
+        materia.id !== materiaId
+          ? materia
+          : {
+              ...materia,
+              catedras: materia.catedras.map((catedra) =>
+                catedra.id !== catedraId ? catedra : { ...catedra, ...cambios }
+              ),
+            }
+      );
+    }
+
+    case "EDITAR_COMISION": {
+      const { materiaId, catedraId, comisionId, cambios } = action.payload;
+      return materias.map((materia) =>
+        materia.id !== materiaId
+          ? materia
+          : {
+              ...materia,
+              catedras: materia.catedras.map((catedra) =>
+                catedra.id !== catedraId
+                  ? catedra
+                  : {
+                      ...catedra,
+                      comisiones: catedra.comisiones.map((comision) =>
+                        comision.id !== comisionId ? comision : { ...comision, ...cambios }
+                      ),
+                    }
+              ),
+            }
+      );
+    }
+
+    case "ELIMINAR_MATERIA": {
+      const { materiaId } = action.payload;
+      return materias.filter((materia) => materia.id !== materiaId);
+    }
+
+    case "ELIMINAR_CATEDRA": {
+      const { materiaId, catedraId } = action.payload;
+      return materias.map((materia) =>
+        materia.id !== materiaId
+          ? materia
+          : { ...materia, catedras: materia.catedras.filter((c) => c.id !== catedraId) }
+      );
+    }
+
+    case "ELIMINAR_COMISION": {
+      const { materiaId, catedraId, comisionId } = action.payload;
+      return materias.map((materia) =>
+        materia.id !== materiaId
+          ? materia
+          : {
+              ...materia,
+              catedras: materia.catedras.map((catedra) =>
+                catedra.id !== catedraId
+                  ? catedra
+                  : { ...catedra, comisiones: catedra.comisiones.filter((co) => co.id !== comisionId) }
+              ),
+            }
+      );
+    }
+
     default:
       return materias;
   }
@@ -267,6 +339,38 @@ export function MateriasProvider({ children }) {
     []
   );
 
+  // --- Backoffice (Administrador): editar todos los campos / eliminar ---
+  const editarMateriaCompleta = useCallback(
+    (materiaId, cambios) => dispatch({ type: "EDITAR_MATERIA_COMPLETA", payload: { materiaId, cambios } }),
+    []
+  );
+  const editarCatedraCompleta = useCallback(
+    (materiaId, catedraId, cambios) =>
+      dispatch({ type: "EDITAR_CATEDRA_COMPLETA", payload: { materiaId, catedraId, cambios } }),
+    []
+  );
+  const editarComision = useCallback(
+    (materiaId, catedraId, comisionId, cambios) =>
+      dispatch({ type: "EDITAR_COMISION", payload: { materiaId, catedraId, comisionId, cambios } }),
+    []
+  );
+  const eliminarMateria = useCallback(
+    (materiaId) => dispatch({ type: "ELIMINAR_MATERIA", payload: { materiaId } }),
+    []
+  );
+  const eliminarCatedra = useCallback(
+    (materiaId, catedraId) => dispatch({ type: "ELIMINAR_CATEDRA", payload: { materiaId, catedraId } }),
+    []
+  );
+  const eliminarComision = useCallback(
+    (materiaId, catedraId, comisionId) =>
+      dispatch({ type: "ELIMINAR_COMISION", payload: { materiaId, catedraId, comisionId } }),
+    []
+  );
+  const eliminarPedido = useCallback((pedidoId) => {
+    setPedidos((prev) => prev.filter((p) => p.id !== pedidoId));
+  }, []);
+
   const agregarAColaEnvio = useCallback((ref) => {
     setColaEnvio((prev) => (prev.some((r) => refHojaKey(r) === refHojaKey(ref)) ? prev : [...prev, ref]));
   }, []);
@@ -301,6 +405,13 @@ export function MateriasProvider({ children }) {
     vaciarColaEnvio,
     compartirCola,
     pedidos,
+    editarMateriaCompleta,
+    editarCatedraCompleta,
+    editarComision,
+    eliminarMateria,
+    eliminarCatedra,
+    eliminarComision,
+    eliminarPedido,
   };
 
   return <MateriasContext.Provider value={value}>{children}</MateriasContext.Provider>;

@@ -269,6 +269,18 @@ body {
   color: var(--bs-info);
 }
 
+.navbar-rol-badge {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.18);
+  color: var(--bs-info);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
 /* --- Botón de la cola de envío (navbar) --- */
 .navbar-cola-btn {
   position: relative;
