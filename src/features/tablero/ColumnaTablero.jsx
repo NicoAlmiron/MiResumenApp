@@ -2,7 +2,7 @@ import { useRef } from "react";
 import { Droppable, Draggable } from "@hello-pangea/dnd";
 import { Button, Badge } from "react-bootstrap";
 import ArchivoCard from "./ArchivoCard";
-import { useFileDrop } from "./useFileDrop";
+import { useFileDrop } from "../../hooks/useFileDrop";
 
 // Una columna del Kanban. `permiteSubir` habilita el botón "Subir documentos"
 // (cuando está vacía) y el drag-and-drop de archivos del sistema operativo

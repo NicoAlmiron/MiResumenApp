@@ -1,4 +1,5 @@
 import { Card } from "react-bootstrap";
+import { descargarArchivo } from "../../utils/descargarArchivo";
 
 const ICONOS_POR_EXTENSION = {
   pdf: "📕",
@@ -12,18 +13,6 @@ const ICONOS_POR_EXTENSION = {
   jpg: "🖼️",
   jpeg: "🖼️",
 };
-
-// Descarga el File real del navegador (si lo tenemos) generando un link temporal.
-function descargar(archivo) {
-  const url = URL.createObjectURL(archivo.archivoOriginal);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = archivo.nombre;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
 
 // Tarjeta de un archivo dentro de una columna del tablero. Arriba tiene dos
 // "badges" circulares (estilo controles de ventana, pero acá son descargar/
@@ -44,7 +33,7 @@ export default function ArchivoCard({ archivo, dragging, onMoverSiguiente, onEli
           disabled={!puedeDescargar}
           onClick={(e) => {
             e.stopPropagation();
-            if (puedeDescargar) descargar(archivo);
+            if (puedeDescargar) descargarArchivo(archivo.archivoOriginal, archivo.nombre);
           }}
         >
           <i className="bi bi-download" aria-hidden="true" />

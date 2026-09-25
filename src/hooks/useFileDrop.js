@@ -1,9 +1,9 @@
 import { useCallback, useState } from "react";
 
 // Maneja tanto "arrastrar y soltar archivos desde el explorador de Windows"
-// (eventos HTML5 nativos, sin librería) como el click en el botón "Subir
-// documentos" (que dispara un <input type="file"> oculto). Ambos caminos
-// terminan llamando a `onArchivos(fileList)`.
+// (eventos HTML5 nativos, sin librería) como el click en un botón que dispara
+// un <input type="file"> oculto. Ambos caminos terminan llamando a
+// `onArchivos(fileList)`. Genérico: lo usan el Tablero y las Herramientas.
 export function useFileDrop(onArchivos) {
   const [arrastrando, setArrastrando] = useState(false);
 

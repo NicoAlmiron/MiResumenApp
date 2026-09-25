@@ -163,6 +163,89 @@ body {
   background-color: var(--bs-danger);
 }
 
+/* --- Herramientas: zona de carga --- */
+.zona-carga {
+  border: 2px dashed var(--bs-border-color);
+  border-radius: var(--bs-border-radius-lg);
+  padding: 2rem 1rem;
+  text-align: center;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.zona-carga--arrastrando {
+  border-color: var(--bs-info);
+  background-color: rgba(34, 211, 238, 0.08);
+}
+
+/* --- Herramientas: lista reordenable (Unir PDFs) --- */
+.lista-ordenable__item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  padding: 0.5rem 0.75rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.lista-ordenable__item--dragging {
+  border-color: var(--bs-primary);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+.lista-ordenable__numero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--bs-primary);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.lista-ordenable__handle {
+  cursor: grab;
+  opacity: 0.6;
+  flex-shrink: 0;
+  display: inline-flex;
+}
+
+.lista-ordenable__handle:hover {
+  opacity: 1;
+}
+
+/* --- Herramientas: vista previa imprimible (Word a PDF) --- */
+.vista-previa-hoja {
+  background: #fff;
+  color: #111;
+  border-radius: var(--bs-border-radius);
+  padding: 2.5rem;
+  max-height: 480px;
+  overflow-y: auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+@media print {
+  /* Al imprimir (Word a PDF) solo se ve la hoja, nada del resto de la app. */
+  .app-navbar,
+  .app-footer,
+  .no-imprimir {
+    display: none !important;
+  }
+
+  .vista-previa-hoja {
+    box-shadow: none;
+    max-height: none;
+    overflow: visible;
+    padding: 0;
+  }
+}
+
 /* --- Login --- */
 .login-page {
   min-height: 100svh;
@@ -211,13 +294,13 @@ body {
   border: 2px solid var(--bs-body-bg);
 }
 
-/* --- Tarjetas de Materia --- */
-.materia-card {
+/* --- Tarjetas clickeables (Materia, Herramientas) --- */
+.tarjeta-clickeable {
   cursor: pointer;
   transition: transform 0.15s ease, border-color 0.15s ease;
 }
 
-.materia-card:hover {
+.tarjeta-clickeable:hover {
   transform: translateY(-2px);
   border-color: var(--bs-primary);
 }

@@ -30,6 +30,9 @@ export default function AppNavbar() {
               <Nav.Link as={NavLink} to="/ventas" className="nav-tab">
                 Ventas
               </Nav.Link>
+              <Nav.Link as={NavLink} to="/herramientas" className="nav-tab">
+                Herramientas
+              </Nav.Link>
               <button
                 type="button"
                 className="btn btn-outline-info rounded-pill navbar-cola-btn ms-md-2"

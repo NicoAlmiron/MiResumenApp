@@ -7,7 +7,7 @@ export default function MateriaCard({ materia, onClick }) {
   const secciones = contarSecciones(materia);
 
   return (
-    <Card role="button" onClick={onClick} className="h-100 materia-card">
+    <Card role="button" onClick={onClick} className="h-100 tarjeta-clickeable">
       <Card.Body className="d-flex flex-column gap-2">
         <Card.Title className="mb-0">{materia.nombre}</Card.Title>
         <div className="text-body-secondary small">
