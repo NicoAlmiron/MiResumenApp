@@ -246,12 +246,21 @@ body {
   }
 }
 
-/* --- Filtro de año (dropdown propio en vez de <select>) --- */
-.filtro-anio-toggle {
+/* --- Ventas: tarjetas de pedido (vista mobile, reemplaza a la tabla) --- */
+.pedido-tarjeta {
+  transition: border-color 0.15s ease;
+}
+
+.pedido-tarjeta:hover {
+  border-color: var(--bs-primary);
+}
+
+/* --- Selects reemplazados por Dropdown propio (SelectDropdown) --- */
+.select-dropdown-toggle {
   width: 100%;
 }
 
-.filtro-anio-toggle:disabled {
+.select-dropdown-toggle:disabled {
   opacity: 0.65;
 }
 

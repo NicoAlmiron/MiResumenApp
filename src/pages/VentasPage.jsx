@@ -4,6 +4,7 @@ import { useMaterias } from "../context/MateriasContext";
 import UltimosPedidosLista from "../features/ventas/UltimosPedidosLista";
 import PedidosFiltros, { FILTROS_VACIOS } from "../features/ventas/PedidosFiltros";
 import PedidosTabla from "../features/ventas/PedidosTabla";
+import PedidosTarjetas from "../features/ventas/PedidosTarjetas";
 
 // Un pedido "coincide" si CUALQUIERA de sus resúmenes matchea materia/cátedra/
 // comisión/año (un pedido con varios resúmenes puede tocar más de una), y si
@@ -49,7 +50,14 @@ export default function VentasPage() {
             Pedidos
           </h5>
           <PedidosFiltros materias={materias} filtros={filtros} onFiltrosChange={setFiltros} />
-          <PedidosTabla pedidos={pedidosFiltrados} />
+          {/* Los mismos pedidos ya filtrados alimentan las dos vistas — en
+              mobile la tabla no entra bien, así que se muestra como tarjetas. */}
+          <div className="d-none d-md-block">
+            <PedidosTabla pedidos={pedidosFiltrados} />
+          </div>
+          <div className="d-md-none">
+            <PedidosTarjetas pedidos={pedidosFiltrados} />
+          </div>
         </Col>
 
         <Col md={4} lg={3}>

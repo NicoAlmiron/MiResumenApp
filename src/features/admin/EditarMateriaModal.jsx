@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import { Modal, Form, Button, Row, Col } from "react-bootstrap";
 import { ANIOS_CURSADA, labelAnio } from "../../utils/anioCursada";
+import SelectDropdown from "../../components/SelectDropdown";
+
+const OPCIONES_CUATRIMESTRE = [
+  { value: "1er cuatrimestre", label: "1er cuatrimestre" },
+  { value: "2do cuatrimestre", label: "2do cuatrimestre" },
+  { value: "Anual", label: "Anual" },
+];
 
 export default function EditarMateriaModal({ show, onHide, materia, onGuardar }) {
   const [nombre, setNombre] = useState("");
@@ -41,23 +48,17 @@ export default function EditarMateriaModal({ show, onHide, materia, onGuardar })
             <Col sm={6}>
               <Form.Group>
                 <Form.Label>Año de cursada</Form.Label>
-                <Form.Select value={anio} onChange={(e) => setAnio(Number(e.target.value))}>
-                  {ANIOS_CURSADA.map((a) => (
-                    <option key={a} value={a}>
-                      {labelAnio(a)}
-                    </option>
-                  ))}
-                </Form.Select>
+                <SelectDropdown
+                  value={String(anio)}
+                  onChange={(valor) => setAnio(Number(valor))}
+                  opciones={ANIOS_CURSADA.map((a) => ({ value: String(a), label: labelAnio(a) }))}
+                />
               </Form.Group>
             </Col>
             <Col sm={6}>
               <Form.Group>
                 <Form.Label>Cuatrimestre</Form.Label>
-                <Form.Select value={cuatrimestre} onChange={(e) => setCuatrimestre(e.target.value)}>
-                  <option>1er cuatrimestre</option>
-                  <option>2do cuatrimestre</option>
-                  <option>Anual</option>
-                </Form.Select>
+                <SelectDropdown value={cuatrimestre} onChange={setCuatrimestre} opciones={OPCIONES_CUATRIMESTRE} />
               </Form.Group>
             </Col>
           </Row>

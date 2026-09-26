@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Table, Form, Button, Alert, Badge } from "react-bootstrap";
+import { Table, Button, Alert, Badge } from "react-bootstrap";
 import { useAuth } from "../../context/AuthContext";
 import { ROLES, ETIQUETA_ROL } from "../../data/authMockData";
+import SelectDropdown from "../../components/SelectDropdown";
 
 export default function UsuariosAdminTab() {
   const { usuario, usuarios, cambiarRolUsuario, eliminarUsuario } = useAuth();
@@ -43,17 +44,12 @@ export default function UsuariosAdminTab() {
                     {u.nombreUsuario} {esUnoMismo && <Badge bg="secondary">vos</Badge>}
                   </td>
                   <td style={{ maxWidth: 200 }}>
-                    <Form.Select
+                    <SelectDropdown
                       size="sm"
                       value={u.rol}
-                      onChange={(e) => handleCambiarRol(u.id, e.target.value)}
-                    >
-                      {Object.values(ROLES).map((r) => (
-                        <option key={r} value={r}>
-                          {ETIQUETA_ROL[r]}
-                        </option>
-                      ))}
-                    </Form.Select>
+                      onChange={(valor) => handleCambiarRol(u.id, valor)}
+                      opciones={Object.values(ROLES).map((r) => ({ value: r, label: ETIQUETA_ROL[r] }))}
+                    />
                   </td>
                   <td className="text-end">
                     <Button

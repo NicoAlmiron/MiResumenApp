@@ -1,4 +1,5 @@
 import { Form, Row, Col, Button } from "react-bootstrap";
+import SelectDropdown from "../../components/SelectDropdown";
 import FiltroAnioDropdown from "../../components/FiltroAnioDropdown";
 import RangoFechaPicker from "./RangoFechaPicker";
 
@@ -51,42 +52,44 @@ export default function PedidosFiltros({ materias, filtros, onFiltrosChange }) {
 
       <Row className="g-2 align-items-center">
         <Col xs={6} md="auto">
-          <Form.Select value={filtros.materiaId} onChange={(e) => actualizar("materiaId", e.target.value)}>
-            <option value="">Todas las materias</option>
-            {materias.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.nombre}
-              </option>
-            ))}
-          </Form.Select>
+          <SelectDropdown
+            value={filtros.materiaId}
+            onChange={(valor) => actualizar("materiaId", valor)}
+            opciones={[
+              { value: "", label: "Todas las materias", separadorDespues: materias.length > 0 },
+              ...materias.map((m) => ({ value: String(m.id), label: m.nombre })),
+            ]}
+          />
         </Col>
         <Col xs={6} md="auto">
-          <Form.Select
+          <SelectDropdown
             value={filtros.catedraId}
-            onChange={(e) => actualizar("catedraId", e.target.value)}
+            onChange={(valor) => actualizar("catedraId", valor)}
             disabled={!materiaSeleccionada}
-          >
-            <option value="">Todas las cátedras</option>
-            {materiaSeleccionada?.catedras.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nombre}
-              </option>
-            ))}
-          </Form.Select>
+            opciones={[
+              {
+                value: "",
+                label: "Todas las cátedras",
+                separadorDespues: (materiaSeleccionada?.catedras.length ?? 0) > 0,
+              },
+              ...(materiaSeleccionada?.catedras.map((c) => ({ value: String(c.id), label: c.nombre })) ?? []),
+            ]}
+          />
         </Col>
         <Col xs={6} md="auto">
-          <Form.Select
+          <SelectDropdown
             value={filtros.comisionId}
-            onChange={(e) => actualizar("comisionId", e.target.value)}
+            onChange={(valor) => actualizar("comisionId", valor)}
             disabled={!catedraSeleccionada?.comisiones.length}
-          >
-            <option value="">Todas las comisiones</option>
-            {catedraSeleccionada?.comisiones.map((co) => (
-              <option key={co.id} value={co.id}>
-                {co.nombre}
-              </option>
-            ))}
-          </Form.Select>
+            opciones={[
+              {
+                value: "",
+                label: "Todas las comisiones",
+                separadorDespues: (catedraSeleccionada?.comisiones.length ?? 0) > 0,
+              },
+              ...(catedraSeleccionada?.comisiones.map((co) => ({ value: String(co.id), label: co.nombre })) ?? []),
+            ]}
+          />
         </Col>
         <Col xs={6} md="auto" title={materiaSeleccionada ? "Se bloquea porque ya lo determina la materia elegida" : undefined}>
           <FiltroAnioDropdown
