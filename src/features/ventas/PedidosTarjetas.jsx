@@ -23,8 +23,24 @@ function PedidoTarjeta({ pedido }) {
   const [primero, ...resto] = pedido.resumenes;
   const tieneMas = resto.length > 0;
 
+  function alternar() {
+    if (tieneMas) setAbierto((v) => !v);
+  }
+
   return (
-    <Card className="pedido-tarjeta">
+    <Card
+      className={`pedido-tarjeta ${tieneMas ? "tarjeta-clickeable" : ""}`}
+      role={tieneMas ? "button" : undefined}
+      tabIndex={tieneMas ? 0 : undefined}
+      aria-expanded={tieneMas ? abierto : undefined}
+      onClick={alternar}
+      onKeyDown={(e) => {
+        if (tieneMas && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          alternar();
+        }
+      }}
+    >
       <Card.Body className="d-flex flex-column gap-2">
         <div className="d-flex justify-content-between align-items-start gap-2">
           <div>
@@ -48,15 +64,10 @@ function PedidoTarjeta({ pedido }) {
 
         {tieneMas && (
           <>
-            <button
-              type="button"
-              className="btn btn-sm btn-outline-info rounded-pill align-self-start"
-              onClick={() => setAbierto((v) => !v)}
-              aria-expanded={abierto}
-            >
-              <i className={`fa-solid ${abierto ? "fa-chevron-up" : "fa-chevron-down"} me-1`} aria-hidden="true" />
+            <span className="small text-info d-inline-flex align-items-center gap-1">
+              <i className={`fa-solid ${abierto ? "fa-chevron-up" : "fa-chevron-down"}`} aria-hidden="true" />
               {abierto ? "Ocultar resúmenes" : `+ ${resto.length} ${resto.length === 1 ? "resumen más" : "resúmenes más"}`}
-            </button>
+            </span>
             {abierto && (
               <div className="d-flex flex-column gap-1">
                 {resto.map((r, i) => (
