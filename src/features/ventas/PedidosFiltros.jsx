@@ -1,5 +1,5 @@
 import { Form, Row, Col, Button } from "react-bootstrap";
-import { ANIOS_CURSADA, labelAnio } from "../../utils/anioCursada";
+import FiltroAnioDropdown from "../../components/FiltroAnioDropdown";
 import RangoFechaPicker from "./RangoFechaPicker";
 
 export const FILTROS_VACIOS = {
@@ -88,20 +88,12 @@ export default function PedidosFiltros({ materias, filtros, onFiltrosChange }) {
             ))}
           </Form.Select>
         </Col>
-        <Col xs={6} md="auto">
-          <Form.Select
+        <Col xs={6} md="auto" title={materiaSeleccionada ? "Se bloquea porque ya lo determina la materia elegida" : undefined}>
+          <FiltroAnioDropdown
             value={filtros.anio}
-            onChange={(e) => actualizar("anio", e.target.value)}
+            onChange={(valor) => actualizar("anio", valor)}
             disabled={Boolean(materiaSeleccionada)}
-            title={materiaSeleccionada ? "Se bloquea porque ya lo determina la materia elegida" : undefined}
-          >
-            <option value="">Todos los años</option>
-            {ANIOS_CURSADA.map((a) => (
-              <option key={a} value={a}>
-                {labelAnio(a)}
-              </option>
-            ))}
-          </Form.Select>
+          />
         </Col>
 
         <Col xs="auto">

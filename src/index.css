@@ -246,6 +246,15 @@ body {
   }
 }
 
+/* --- Filtro de año (dropdown propio en vez de <select>) --- */
+.filtro-anio-toggle {
+  width: 100%;
+}
+
+.filtro-anio-toggle:disabled {
+  opacity: 0.65;
+}
+
 /* --- Login --- */
 .login-page {
   min-height: 100svh;
@@ -270,7 +279,7 @@ body {
 }
 
 /* --- Botón de la cola de envío + botón de usuario (navbar) ---
-   En la pantalla más chica (<576px, ver los spans .d-none.d-sm-inline en
+   Ya en pantalla media (<768px, ver los spans .d-none.d-md-inline en
    AppNavbar.jsx) el texto desaparece y quedan como botones circulares de
    solo-ícono; acá se ajusta el padding para que en ambos modos se vean bien. */
 .navbar-cola-btn,
@@ -280,7 +289,7 @@ body {
   padding: 0.4rem 1rem;
 }
 
-@media (max-width: 575.98px) {
+@media (max-width: 767.98px) {
   .navbar-cola-btn,
   .navbar-user-btn {
     padding: 0.4rem 0.65rem;

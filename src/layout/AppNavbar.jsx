@@ -4,16 +4,17 @@ import { NavLink } from "react-router-dom";
 import { useMaterias } from "../context/MateriasContext";
 import { useAuth } from "../context/AuthContext";
 import { ROLES } from "../data/authMockData";
-import Logo from "../components/Logo";
 import ColaEnvioModal from "../features/materias/ColaEnvioModal";
 import CrearUsuarioModal from "../features/usuarios/CrearUsuarioModal";
 
-// Navbar principal: logo + "MiResumen" + pestañas (varían según el rol, van
-// dentro del menú hamburguesa en mobile) + cola de envío y usuario, estos
-// últimos DOS siempre visibles (no se esconden detrás del hamburguesa) pero
-// pasan a solo-ícono en la pantalla más chica (ver .d-none.d-sm-inline acá
-// abajo). El estilo de "pestaña" (píldora azul cuando está activa) se define
-// en la clase .nav-tab de theme.scss / index.css.
+// Navbar principal: "MiResumen" (solo texto, el logo quedó como ícono de la
+// página — ver public/favicon.svg / index.html) a la izquierda, y a la
+// derecha, bien separados del nombre, los controles con ícono: pestañas
+// (varían según el rol, van dentro del menú hamburguesa en mobile), cola de
+// envío y usuario. Estos últimos dos siempre están visibles (no se esconden
+// detrás del hamburguesa) pero pasan a solo-ícono ya en pantalla media (ver
+// .d-none.d-md-inline acá abajo). El estilo de "pestaña" (píldora azul
+// cuando está activa) se define en la clase .nav-tab de theme.scss / index.css.
 export default function AppNavbar() {
   const { colaEnvio } = useMaterias();
   const { usuario, logout } = useAuth();
@@ -29,9 +30,8 @@ export default function AppNavbar() {
     <>
       <Navbar expand="md" className="app-navbar py-3">
         <Container>
-          <Navbar.Brand as={NavLink} to={inicio} className="fw-bold fs-4 text-info-emphasis d-flex align-items-center gap-2">
-            <Logo size={26} />
-            <span className="d-none d-sm-inline">MiResumen</span>
+          <Navbar.Brand as={NavLink} to={inicio} className="fw-bold fs-4 text-info-emphasis">
+            MiResumen
           </Navbar.Brand>
 
           {/* Siempre visibles, incluso con el menú colapsado */}
@@ -44,7 +44,7 @@ export default function AppNavbar() {
                 onClick={() => setShowCola(true)}
               >
                 <i className="fa-solid fa-paper-plane" aria-hidden="true" />
-                <span className="d-none d-sm-inline ms-1">Seleccionados</span>
+                <span className="d-none d-md-inline ms-1">Seleccionados</span>
                 {colaEnvio.length > 0 && <span className="navbar-cola-btn__badge">{colaEnvio.length}</span>}
               </button>
             )}
@@ -52,7 +52,7 @@ export default function AppNavbar() {
             <Dropdown align="end">
               <Dropdown.Toggle variant="outline-light" size="sm" className="rounded-pill navbar-user-btn" id="dropdown-usuario">
                 <i className="fa-solid fa-circle-user" aria-hidden="true" />
-                <span className="d-none d-sm-inline ms-1">{usuario.nombreUsuario}</span>
+                <span className="d-none d-md-inline ms-1">{usuario.nombreUsuario}</span>
               </Dropdown.Toggle>
               <Dropdown.Menu>
                 <Dropdown.Item as={NavLink} to="/configuracion">

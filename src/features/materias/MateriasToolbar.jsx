@@ -1,5 +1,5 @@
 import { Form, Button, Row, Col } from "react-bootstrap";
-import { labelAnio } from "../../utils/anioCursada";
+import FiltroAnioDropdown from "../../components/FiltroAnioDropdown";
 
 // Barra de funcionalidades de la pestaña Resúmenes: buscador + filtro por
 // año + botón "Crear materia". `aniosDisponibles` se calcula en ResumenesPage
@@ -23,14 +23,7 @@ export default function MateriasToolbar({
         />
       </Col>
       <Col xs={6} md="auto">
-        <Form.Select value={anioFiltro} onChange={(e) => onAnioFiltroChange(e.target.value)}>
-          <option value="">Todos los años</option>
-          {aniosDisponibles.map((anio) => (
-            <option key={anio} value={anio}>
-              {labelAnio(anio)}
-            </option>
-          ))}
-        </Form.Select>
+        <FiltroAnioDropdown value={anioFiltro} onChange={onAnioFiltroChange} opciones={aniosDisponibles} />
       </Col>
       <Col xs={6} md="auto">
         <Button variant="primary" className="w-100" onClick={onCrearMateria}>
