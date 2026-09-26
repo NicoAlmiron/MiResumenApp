@@ -1,14 +1,9 @@
-import { createContext, useContext, useState, useCallback } from "react";
-import { usuariosIniciales, ROLES } from "../data/authMockData";
-import { generarId } from "../data/mockData";
+import { createContext, useContext, useState, useCallback, useEffect } from "react";
+import * as authApi from "../api/auth";
+import { ApiError } from "../api/client";
 
 const AuthContext = createContext(null);
 const CLAVE_STORAGE = "miresumen_auth";
-
-// Cuando exista la API real (RF-29 a RF-33: passlib/bcrypt + JWT), este
-// archivo se reemplaza por llamadas a la API — el resto de la app
-// (RequireAuth, RequireRol, AppNavbar) no debería necesitar cambios porque
-// solo dependen de `useAuth()`, no de cómo se resuelve el login por dentro.
 
 function leerSesionGuardada() {
   try {
@@ -28,131 +23,134 @@ function guardarSesion(sesion) {
   }
 }
 
-// Datos públicos de un usuario (sin password) para guardar en sesión/localStorage.
-function aPublico(u) {
-  return { id: u.id, nombreUsuario: u.nombreUsuario, rol: u.rol };
-}
-
 export function AuthProvider({ children }) {
-  const [usuarios, setUsuarios] = useState(usuariosIniciales);
+  const [usuario, setUsuario] = useState(null);
+  // true mientras se valida el token guardado contra GET /auth/me al
+  // arrancar — RequireAuth espera este flag antes de decidir si redirige a
+  // /login (si no, un F5 en una ruta privada rebota a Login un instante
+  // antes de confirmar que la sesión sigue viva).
+  const [cargandoSesion, setCargandoSesion] = useState(true);
 
-  // La sesión guardada se re-valida contra la lista de usuarios actual (por
-  // id): si ese usuario ya no existe (por ejemplo, lo borraron desde el
-  // backoffice en otra pestaña), no lo dejamos "logueado a medias".
-  const [usuario, setUsuario] = useState(() => {
+  useEffect(() => {
     const guardado = leerSesionGuardada();
-    if (!guardado) return null;
-    const existe = usuariosIniciales.find((u) => u.id === guardado.id);
-    return existe ? aPublico(existe) : null;
-  });
+    if (!guardado?.token) {
+      setCargandoSesion(false);
+      return;
+    }
+    authApi
+      .obtenerMe()
+      .then((actualizado) => {
+        setUsuario(actualizado);
+        guardarSesion({ token: guardado.token, usuario: actualizado });
+      })
+      .catch(() => {
+        guardarSesion(null); // token vencido/inválido
+      })
+      .finally(() => setCargandoSesion(false));
+  }, []);
 
-  const login = useCallback(
-    (nombreUsuario, password) => {
-      const encontrado = usuarios.find((u) => u.nombreUsuario === nombreUsuario && u.password === password);
-      if (!encontrado) return false;
-      const sesion = aPublico(encontrado);
-      setUsuario(sesion);
-      guardarSesion(sesion);
+  const login = useCallback(async (nombreUsuario, password) => {
+    try {
+      const { token, usuario: nuevoUsuario } = await authApi.login(nombreUsuario, password);
+      guardarSesion({ token, usuario: nuevoUsuario });
+      setUsuario(nuevoUsuario);
       return true;
-    },
-    [usuarios]
-  );
+    } catch {
+      return false;
+    }
+  }, []);
 
   const logout = useCallback(() => {
+    authApi.logout();
     setUsuario(null);
     guardarSesion(null);
   }, []);
 
   // Crea un usuario nuevo. Devuelve null si ok, o un mensaje de error si el
-  // nombre ya existe. La restricción de qué roles puede asignar quien crea
-  // (un "boss" no puede dar de alta a otro "administrador") se resuelve en
-  // el modal que llama a esto — acá solo se guarda.
-  const crearUsuario = useCallback((datos) => {
-    let resultado = null;
-    setUsuarios((prev) => {
-      if (prev.some((u) => u.nombreUsuario.toLowerCase() === datos.nombreUsuario.toLowerCase())) {
-        resultado = "Ya existe un usuario con ese nombre.";
-        return prev;
-      }
-      const nuevo = { id: generarId(), ...datos };
-      resultado = null;
-      return [...prev, nuevo];
-    });
-    return resultado;
+  // nombre ya existe (o si un boss intentó crear un administrador — eso lo
+  // valida el backend, acá solo se traduce el error).
+  const crearUsuario = useCallback(async (datos) => {
+    try {
+      await authApi.crearUsuario(datos);
+      return null;
+    } catch (err) {
+      return err instanceof ApiError ? err.message : "No se pudo crear el usuario.";
+    }
+  }, []);
+
+  const listarUsuarios = useCallback(async () => {
+    try {
+      return await authApi.listarUsuarios();
+    } catch {
+      return [];
+    }
   }, []);
 
   const cambiarNombreUsuario = useCallback(
-    (nuevoNombre) => {
+    async (nuevoNombre) => {
       if (!usuario) return "No hay sesión activa.";
-      const yaExiste = usuarios.some(
-        (u) => u.id !== usuario.id && u.nombreUsuario.toLowerCase() === nuevoNombre.toLowerCase()
-      );
-      if (yaExiste) return "Ya existe un usuario con ese nombre.";
-
-      setUsuarios((prev) => prev.map((u) => (u.id === usuario.id ? { ...u, nombreUsuario: nuevoNombre } : u)));
-      const sesion = { ...usuario, nombreUsuario: nuevoNombre };
-      setUsuario(sesion);
-      guardarSesion(sesion);
-      return null;
+      try {
+        const actualizado = await authApi.actualizarMe({ nombreUsuario: nuevoNombre });
+        setUsuario(actualizado);
+        guardarSesion({ token: leerSesionGuardada()?.token, usuario: actualizado });
+        return null;
+      } catch (err) {
+        return err instanceof ApiError ? err.message : "No se pudo cambiar el nombre de usuario.";
+      }
     },
-    [usuario, usuarios]
+    [usuario]
   );
 
   const cambiarPassword = useCallback(
-    (passwordActual, passwordNueva) => {
+    async (passwordActual, passwordNueva) => {
       if (!usuario) return "No hay sesión activa.";
-      const propio = usuarios.find((u) => u.id === usuario.id);
-      if (!propio || propio.password !== passwordActual) return "La contraseña actual no es correcta.";
-
-      setUsuarios((prev) => prev.map((u) => (u.id === usuario.id ? { ...u, password: passwordNueva } : u)));
-      return null;
+      try {
+        await authApi.actualizarMe({ passwordActual, passwordNueva });
+        return null;
+      } catch (err) {
+        return err instanceof ApiError ? err.message : "No se pudo cambiar la contraseña.";
+      }
     },
-    [usuario, usuarios]
+    [usuario]
   );
 
-  // Backoffice: cambiar el rol de cualquier usuario. Evita que el último
-  // administrador se quede sin acceso al bajarse su propio rol por error.
+  // Backoffice: cambiar el rol de cualquier usuario. Si es el propio usuario
+  // logueado, refresca también la sesión guardada con el rol nuevo.
   const cambiarRolUsuario = useCallback(
-    (id, nuevoRol) => {
-      const cantidadAdmins = usuarios.filter((u) => u.rol === ROLES.ADMINISTRADOR).length;
-      const objetivo = usuarios.find((u) => u.id === id);
-      if (objetivo?.rol === ROLES.ADMINISTRADOR && nuevoRol !== ROLES.ADMINISTRADOR && cantidadAdmins <= 1) {
-        return "Tiene que quedar al menos un administrador.";
+    async (id, nuevoRol) => {
+      try {
+        const actualizado = await authApi.cambiarRolUsuario(id, nuevoRol);
+        if (usuario?.id === id) {
+          setUsuario(actualizado);
+          guardarSesion({ token: leerSesionGuardada()?.token, usuario: actualizado });
+        }
+        return null;
+      } catch (err) {
+        return err instanceof ApiError ? err.message : "No se pudo cambiar el rol.";
       }
-      setUsuarios((prev) => prev.map((u) => (u.id === id ? { ...u, rol: nuevoRol } : u)));
-      if (usuario?.id === id) {
-        const sesion = { ...usuario, rol: nuevoRol };
-        setUsuario(sesion);
-        guardarSesion(sesion);
-      }
-      return null;
     },
-    [usuario, usuarios]
+    [usuario]
   );
 
-  // Backoffice: eliminar un usuario. No se puede borrar a uno mismo ni dejar
-  // el sistema sin ningún administrador.
-  const eliminarUsuario = useCallback(
-    (id) => {
-      if (usuario?.id === id) return "No podés eliminar tu propio usuario.";
-      const objetivo = usuarios.find((u) => u.id === id);
-      const cantidadAdmins = usuarios.filter((u) => u.rol === ROLES.ADMINISTRADOR).length;
-      if (objetivo?.rol === ROLES.ADMINISTRADOR && cantidadAdmins <= 1) {
-        return "Tiene que quedar al menos un administrador.";
-      }
-      setUsuarios((prev) => prev.filter((u) => u.id !== id));
+  // Backoffice: eliminar un usuario (el backend ya valida no auto-eliminarse
+  // ni dejar el sistema sin ningún administrador).
+  const eliminarUsuario = useCallback(async (id) => {
+    try {
+      await authApi.eliminarUsuario(id);
       return null;
-    },
-    [usuario, usuarios]
-  );
+    } catch (err) {
+      return err instanceof ApiError ? err.message : "No se pudo eliminar el usuario.";
+    }
+  }, []);
 
   const value = {
     usuario,
     estaAutenticado: usuario != null,
-    usuarios: usuarios.map(aPublico), // nunca se expone la password fuera de este archivo
+    cargandoSesion,
     login,
     logout,
     crearUsuario,
+    listarUsuarios,
     cambiarNombreUsuario,
     cambiarPassword,
     cambiarRolUsuario,

@@ -17,19 +17,19 @@ export default function ConfiguracionPage() {
   const [passwordConfirmar, setPasswordConfirmar] = useState("");
   const [mensajePassword, setMensajePassword] = useState(null);
 
-  function handleNombre(e) {
+  async function handleNombre(e) {
     e.preventDefault();
-    const err = cambiarNombreUsuario(nombreNuevo.trim());
+    const err = await cambiarNombreUsuario(nombreNuevo.trim());
     setMensajeNombre(err ? { tipo: "danger", texto: err } : { tipo: "success", texto: "Nombre de usuario actualizado." });
   }
 
-  function handlePassword(e) {
+  async function handlePassword(e) {
     e.preventDefault();
     if (passwordNueva !== passwordConfirmar) {
       setMensajePassword({ tipo: "danger", texto: "La confirmación no coincide con la contraseña nueva." });
       return;
     }
-    const err = cambiarPassword(passwordActual, passwordNueva);
+    const err = await cambiarPassword(passwordActual, passwordNueva);
     if (err) {
       setMensajePassword({ tipo: "danger", texto: err });
       return;

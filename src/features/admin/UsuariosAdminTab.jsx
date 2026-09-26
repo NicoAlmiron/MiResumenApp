@@ -1,22 +1,47 @@
-import { useState } from "react";
-import { Table, Button, Alert, Badge } from "react-bootstrap";
+import { useState, useEffect, useCallback } from "react";
+import { Table, Button, Alert, Badge, Spinner } from "react-bootstrap";
 import { useAuth } from "../../context/AuthContext";
 import { ROLES, ETIQUETA_ROL } from "../../data/authMockData";
 import SelectDropdown from "../../components/SelectDropdown";
 
 export default function UsuariosAdminTab() {
-  const { usuario, usuarios, cambiarRolUsuario, eliminarUsuario } = useAuth();
+  const { usuario, listarUsuarios, cambiarRolUsuario, eliminarUsuario } = useAuth();
+  const [usuarios, setUsuarios] = useState([]);
+  const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
 
-  function handleCambiarRol(id, nuevoRol) {
-    const err = cambiarRolUsuario(id, nuevoRol);
+  const cargar = useCallback(() => {
+    setCargando(true);
+    listarUsuarios()
+      .then(setUsuarios)
+      .finally(() => setCargando(false));
+  }, [listarUsuarios]);
+
+  useEffect(() => {
+    cargar();
+  }, [cargar]);
+
+  async function handleCambiarRol(id, nuevoRol) {
+    const err = await cambiarRolUsuario(id, nuevoRol);
     setError(err ?? "");
+    if (!err) cargar();
   }
 
-  function handleEliminar(u) {
+  async function handleEliminar(u) {
     if (!window.confirm(`¿Eliminar el usuario "${u.nombreUsuario}"?`)) return;
-    const err = eliminarUsuario(u.id);
+    const err = await eliminarUsuario(u.id);
     setError(err ?? "");
+    if (!err) cargar();
+  }
+
+  if (cargando) {
+    return (
+      <div className="d-flex justify-content-center py-4">
+        <Spinner animation="border" variant="info" role="status">
+          <span className="visually-hidden">Cargando...</span>
+        </Spinner>
+      </div>
+    );
   }
 
   return (

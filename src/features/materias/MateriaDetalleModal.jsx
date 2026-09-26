@@ -23,8 +23,8 @@ export default function MateriaDetalleModal({ show, onHide, materia }) {
   const sinSecciones = materia.catedras.length === 0;
   const totalCompartidos = contarComparticionesTotales(materia);
 
-  function handleSeguirPreparandoSinSecciones() {
-    const nuevaCatedraId = crearCatedra(materia.id, { nombre: "General", profesor: "" });
+  async function handleSeguirPreparandoSinSecciones() {
+    const nuevaCatedraId = await crearCatedra(materia.id, { nombre: "General", profesor: "" });
     navigate(`/materias/${materia.id}/catedras/${nuevaCatedraId}/tablero`);
   }
 

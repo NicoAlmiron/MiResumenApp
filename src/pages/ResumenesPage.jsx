@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Container, Row, Col } from "react-bootstrap";
+import { Container, Row, Col, Spinner } from "react-bootstrap";
 import { useMaterias } from "../context/MateriasContext";
 import MateriasToolbar from "../features/materias/MateriasToolbar";
 import MateriaCard from "../features/materias/MateriaCard";
@@ -7,7 +7,7 @@ import CrearMateriaModal from "../features/materias/CrearMateriaModal";
 import MateriaDetalleModal from "../features/materias/MateriaDetalleModal";
 
 export default function ResumenesPage() {
-  const { materias, crearMateria } = useMaterias();
+  const { materias, cargando, crearMateria } = useMaterias();
 
   const [busqueda, setBusqueda] = useState("");
   const [anioFiltro, setAnioFiltro] = useState("");
@@ -43,7 +43,13 @@ export default function ResumenesPage() {
         onCrearMateria={() => setShowCrearMateria(true)}
       />
 
-      {materiasFiltradas.length === 0 ? (
+      {cargando ? (
+        <div className="d-flex justify-content-center py-5">
+          <Spinner animation="border" variant="info" role="status">
+            <span className="visually-hidden">Cargando...</span>
+          </Spinner>
+        </div>
+      ) : materiasFiltradas.length === 0 ? (
         <p className="text-body-secondary text-center py-5">No se encontraron materias.</p>
       ) : (
         <Row xs={1} sm={2} lg={3} className="g-3">

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Container, Alert, Button } from "react-bootstrap";
+import { Container, Alert, Button, Spinner } from "react-bootstrap";
 import { useMaterias, getHoja, refHojaKey } from "../context/MateriasContext";
 import TableroKanban from "../features/tablero/TableroKanban";
 import RegistrarContactoModal from "../features/ventas/RegistrarContactoModal";
@@ -8,7 +8,7 @@ import RegistrarContactoModal from "../features/ventas/RegistrarContactoModal";
 export default function TableroPage() {
   const { materiaId, catedraId, comisionId } = useParams();
   const navigate = useNavigate();
-  const { materias, registrarPedido, colaEnvio, agregarAColaEnvio, quitarDeColaEnvio } = useMaterias();
+  const { materias, cargando, registrarPedido, colaEnvio, agregarAColaEnvio, quitarDeColaEnvio } = useMaterias();
   const [showContacto, setShowContacto] = useState(false);
 
   const refHoja = {
@@ -19,6 +19,16 @@ export default function TableroPage() {
 
   const materia = materias.find((m) => m.id === refHoja.materiaId);
   const hoja = getHoja(materias, refHoja);
+
+  if (cargando) {
+    return (
+      <div className="d-flex justify-content-center py-5">
+        <Spinner animation="border" variant="info" role="status">
+          <span className="visually-hidden">Cargando...</span>
+        </Spinner>
+      </div>
+    );
+  }
 
   if (!materia || !hoja) {
     return (

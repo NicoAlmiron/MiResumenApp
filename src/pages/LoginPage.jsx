@@ -11,6 +11,7 @@ export default function LoginPage() {
   const [nombreUsuario, setNombreUsuario] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [enviando, setEnviando] = useState(false);
 
   // Ya logueado y entró a /login igual (por ejemplo, escribiendo la URL a
   // mano): lo mandamos derecho a donde iba, o a "/" (IndexRedirect decide
@@ -20,9 +21,11 @@ export default function LoginPage() {
     return <Navigate to={destino} replace />;
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
-    const ok = login(nombreUsuario.trim(), password);
+    setEnviando(true);
+    const ok = await login(nombreUsuario.trim(), password);
+    setEnviando(false);
     if (!ok) {
       setError("Usuario o contraseña incorrectos.");
       return;
@@ -70,9 +73,9 @@ export default function LoginPage() {
                 required
               />
             </Form.Group>
-            <Button type="submit" variant="primary" className="fw-semibold mt-2">
+            <Button type="submit" variant="primary" className="fw-semibold mt-2" disabled={enviando}>
               <i className="bi bi-box-arrow-in-right me-2" aria-hidden="true" />
-              Iniciar sesión
+              {enviando ? "Ingresando..." : "Iniciar sesión"}
             </Button>
           </Form>
 

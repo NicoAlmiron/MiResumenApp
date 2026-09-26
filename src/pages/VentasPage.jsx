@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Container, Row, Col } from "react-bootstrap";
+import { Container, Row, Col, Spinner } from "react-bootstrap";
 import { useMaterias } from "../context/MateriasContext";
 import UltimosPedidosLista from "../features/ventas/UltimosPedidosLista";
 import PedidosFiltros, { FILTROS_VACIOS } from "../features/ventas/PedidosFiltros";
@@ -28,7 +28,7 @@ function pedidoCoincide(pedido, filtros) {
 }
 
 export default function VentasPage() {
-  const { materias, pedidos } = useMaterias();
+  const { materias, pedidos, cargandoPedidos } = useMaterias();
   const [filtros, setFiltros] = useState(FILTROS_VACIOS);
 
   const pedidosOrdenados = useMemo(
@@ -40,6 +40,16 @@ export default function VentasPage() {
     () => pedidosOrdenados.filter((pedido) => pedidoCoincide(pedido, filtros)),
     [pedidosOrdenados, filtros]
   );
+
+  if (cargandoPedidos) {
+    return (
+      <div className="d-flex justify-content-center py-5">
+        <Spinner animation="border" variant="info" role="status">
+          <span className="visually-hidden">Cargando...</span>
+        </Spinner>
+      </div>
+    );
+  }
 
   return (
     <Container fluid className="py-4 px-3 px-md-4">

@@ -21,6 +21,7 @@ export default function CrearUsuarioModal({ show, onHide }) {
   const [rol, setRol] = useState(rolesPermitidos[rolesPermitidos.length - 1]); // el más "chico" por defecto
   const [error, setError] = useState("");
   const [ok, setOk] = useState(false);
+  const [enviando, setEnviando] = useState(false);
 
   function limpiarYCerrar() {
     setNombreUsuario("");
@@ -31,9 +32,11 @@ export default function CrearUsuarioModal({ show, onHide }) {
     onHide();
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
-    const err = crearUsuario({ nombreUsuario: nombreUsuario.trim(), password, rol });
+    setEnviando(true);
+    const err = await crearUsuario({ nombreUsuario: nombreUsuario.trim(), password, rol });
+    setEnviando(false);
     if (err) {
       setError(err);
       return;
@@ -97,7 +100,7 @@ export default function CrearUsuarioModal({ show, onHide }) {
           <Button variant="outline-light" onClick={limpiarYCerrar}>
             Cerrar
           </Button>
-          <Button variant="primary" type="submit">
+          <Button variant="primary" type="submit" disabled={enviando}>
             Crear usuario
           </Button>
         </Modal.Footer>

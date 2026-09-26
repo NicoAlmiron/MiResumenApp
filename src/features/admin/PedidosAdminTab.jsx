@@ -1,11 +1,21 @@
-import { Table, Button, Badge } from "react-bootstrap";
+import { Table, Button, Badge, Spinner } from "react-bootstrap";
 import { useMaterias } from "../../context/MateriasContext";
 
 export default function PedidosAdminTab() {
-  const { pedidos, eliminarPedido } = useMaterias();
+  const { pedidos, cargandoPedidos, eliminarPedido } = useMaterias();
 
   function handleEliminar(pedido) {
     if (window.confirm(`¿Eliminar el pedido de "${pedido.contactoNombre}"?`)) eliminarPedido(pedido.id);
+  }
+
+  if (cargandoPedidos) {
+    return (
+      <div className="d-flex justify-content-center py-4">
+        <Spinner animation="border" variant="info" role="status">
+          <span className="visually-hidden">Cargando...</span>
+        </Spinner>
+      </div>
+    );
   }
 
   if (pedidos.length === 0) {

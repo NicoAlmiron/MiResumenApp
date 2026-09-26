@@ -13,11 +13,3 @@ export const ETIQUETA_ROL = {
   boss: "Boss",
   usuario: "Usuario",
 };
-
-// 3 cuentas de ejemplo (una por rol) para poder probar las 3 vistas sin
-// tener que usar primero "Crear usuario nuevo".
-export const usuariosIniciales = [
-  { id: 1, nombreUsuario: "admin", password: "admin123", rol: ROLES.ADMINISTRADOR },
-  { id: 2, nombreUsuario: "boss", password: "boss123", rol: ROLES.BOSS },
-  { id: 3, nombreUsuario: "usuario", password: "usuario123", rol: ROLES.USUARIO },
-];

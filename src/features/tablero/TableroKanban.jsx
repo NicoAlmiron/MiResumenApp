@@ -1,6 +1,5 @@
 import { DragDropContext } from "@hello-pangea/dnd";
 import { useMaterias } from "../../context/MateriasContext";
-import { generarId } from "../../data/mockData";
 import ColumnaTablero from "./ColumnaTablero";
 
 const COLUMNAS = [
@@ -22,14 +21,10 @@ export default function TableroKanban({ hoja, refHoja }) {
     moverArchivo(refHoja, Number(draggableId), source.droppableId, destination.droppableId);
   }
 
+  // Solo se manda el nombre: el backend genera el id y calcula la extensión,
+  // y todavía no hay integración real con Drive (no hay bytes que subir).
   function handleSubir(columnaKey, fileList) {
-    const nuevosArchivos = Array.from(fileList).map((file) => ({
-      id: generarId(),
-      nombre: file.name,
-      extension: file.name.split(".").pop(),
-      fechaActualizado: new Date().toISOString().slice(0, 10),
-      archivoOriginal: file, // se guarda el File real para poder descargarlo después
-    }));
+    const nuevosArchivos = Array.from(fileList).map((file) => ({ nombre: file.name }));
     subirArchivos(refHoja, columnaKey, nuevosArchivos);
   }
 

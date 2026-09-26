@@ -1,17 +1,11 @@
-import { createContext, useContext, useReducer, useCallback, useState } from "react";
-import { materiasIniciales, pedidosIniciales, generarId } from "../data/mockData";
+import { createContext, useContext, useCallback, useState, useEffect } from "react";
+import { ROLES } from "../data/authMockData";
+import { useAuth } from "./AuthContext";
+import * as materiasApi from "../api/materias";
+import * as tablerosApi from "../api/tableros";
+import * as pedidosApi from "../api/pedidos";
 
 const MateriasContext = createContext(null);
-
-function tableroVacio() {
-  return { documentos: [], enEdicion: [], listo: [] };
-}
-
-// Cambia la extensión de un nombre de archivo ("Resumen.docx" -> "Resumen.pdf").
-function reemplazarExtension(nombre, nuevaExtension) {
-  const base = nombre.includes(".") ? nombre.slice(0, nombre.lastIndexOf(".")) : nombre;
-  return `${base}.${nuevaExtension}`;
-}
 
 // Clave única de una hoja (Cátedra o Comisión), para comparar/deduplicar refs.
 export function refHojaKey(ref) {
@@ -31,11 +25,9 @@ function actualizarHoja(materias, { materiaId, catedraId, comisionId }, updater)
         if (catedra.id !== catedraId) return catedra;
 
         if (comisionId == null) {
-          // La hoja es la propia Cátedra
           return { ...catedra, ...updater(catedra) };
         }
 
-        // La hoja es una Comisión dentro de esta Cátedra
         return {
           ...catedra,
           comisiones: catedra.comisiones.map((comision) =>
@@ -47,327 +39,295 @@ function actualizarHoja(materias, { materiaId, catedraId, comisionId }, updater)
   });
 }
 
-function reducer(materias, action) {
-  switch (action.type) {
-    case "CREAR_MATERIA": {
-      const { id, nombre, anio, cuatrimestre, descripcion } = action.payload;
-      const nueva = { id, nombre, anio, cuatrimestre, descripcion, catedras: [] };
-      return [...materias, nueva];
+// GET /materias ya viene anidado con casi los mismos nombres de campo que
+// necesita el frontend — acá solo se recorta a lo que se usa (se ignoran
+// creado_en/materia_id/catedra_id, que son de la API, no del árbol UI).
+function normalizarComision(c) {
+  return { id: c.id, nombre: c.nombre, turno: c.turno, vecesCompartido: 0, tableroId: null, tablero: null };
+}
+function normalizarCatedra(c) {
+  return {
+    id: c.id,
+    nombre: c.nombre,
+    profesor: c.profesor,
+    vecesCompartido: 0,
+    tableroId: null,
+    tablero: null,
+    comisiones: c.comisiones.map(normalizarComision),
+  };
+}
+function normalizarMateria(m) {
+  return {
+    id: m.id,
+    nombre: m.nombre,
+    anio: m.anio,
+    cuatrimestre: m.cuatrimestre,
+    descripcion: m.descripcion,
+    catedras: m.catedras.map(normalizarCatedra),
+  };
+}
+
+// Cada Cátedra y cada Comisión tiene su propio tablero en el backend (se crea
+// solo, al crearlas) — se piden todos en paralelo y se mergean en el árbol,
+// para que CatedraRow/ComisionRow/SeccionButtons puedan seguir leyendo
+// `hoja.tablero`/`hoja.vecesCompartido` directo, sin saber que son datos
+// que vinieron de un endpoint aparte.
+async function cargarTablerosDelArbol(materias) {
+  const porCatedra = new Map();
+  const porComision = new Map();
+  const tareas = [];
+
+  for (const materia of materias) {
+    for (const catedra of materia.catedras) {
+      tareas.push(tablerosApi.obtenerTableroDeCatedra(catedra.id).then((r) => porCatedra.set(catedra.id, r)));
+      for (const comision of catedra.comisiones) {
+        tareas.push(tablerosApi.obtenerTableroDeComision(comision.id).then((r) => porComision.set(comision.id, r)));
+      }
     }
-
-    case "CREAR_CATEDRA": {
-      const { materiaId, id, nombre, profesor } = action.payload;
-      return materias.map((materia) =>
-        materia.id !== materiaId
-          ? materia
-          : {
-              ...materia,
-              catedras: [
-                ...materia.catedras,
-                { id, nombre, profesor, vecesCompartido: 0, tablero: tableroVacio(), comisiones: [] },
-              ],
-            }
-      );
-    }
-
-    case "CREAR_COMISION": {
-      const { materiaId, catedraId, id, nombre, turno } = action.payload;
-      return materias.map((materia) =>
-        materia.id !== materiaId
-          ? materia
-          : {
-              ...materia,
-              catedras: materia.catedras.map((catedra) =>
-                catedra.id !== catedraId
-                  ? catedra
-                  : {
-                      ...catedra,
-                      comisiones: [
-                        ...catedra.comisiones,
-                        { id, nombre, turno, vecesCompartido: 0, tablero: tableroVacio() },
-                      ],
-                    }
-              ),
-            }
-      );
-    }
-
-    case "SUBIR_ARCHIVOS": {
-      const { ref, columna, archivos } = action.payload;
-      return actualizarHoja(materias, ref, (hoja) => ({
-        tablero: { ...hoja.tablero, [columna]: [...hoja.tablero[columna], ...archivos] },
-      }));
-    }
-
-    case "MOVER_ARCHIVO": {
-      const { ref, archivoId, columnaOrigen, columnaDestino } = action.payload;
-      if (columnaOrigen === columnaDestino) return materias;
-
-      return actualizarHoja(materias, ref, (hoja) => {
-        const archivo = hoja.tablero[columnaOrigen].find((a) => a.id === archivoId);
-        if (!archivo) return {};
-
-        // Regla especial: pasar un archivo a "Listo para compartir" nunca lo
-        // saca de su columna de origen, lo COPIA. Si es Word (doc/docx), la
-        // copia queda "convertida" a PDF (simulado: cambia nombre/extensión,
-        // sin un archivo real detrás — por eso pierde `archivoOriginal` y no
-        // se puede descargar). Si ya es PDF, la copia es idéntica al original.
-        if (columnaDestino === "listo") {
-          const esWord = ["doc", "docx"].includes(archivo.extension?.toLowerCase());
-          const copia = esWord
-            ? {
-                ...archivo,
-                id: generarId(),
-                nombre: reemplazarExtension(archivo.nombre, "pdf"),
-                extension: "pdf",
-                archivoOriginal: null,
-                fechaActualizado: new Date().toISOString().slice(0, 10),
-              }
-            : { ...archivo, id: generarId(), fechaActualizado: new Date().toISOString().slice(0, 10) };
-
-          return { tablero: { ...hoja.tablero, listo: [...hoja.tablero.listo, copia] } };
-        }
-
-        return {
-          tablero: {
-            ...hoja.tablero,
-            [columnaOrigen]: hoja.tablero[columnaOrigen].filter((a) => a.id !== archivoId),
-            [columnaDestino]: [...hoja.tablero[columnaDestino], archivo],
-          },
-        };
-      });
-    }
-
-    case "ELIMINAR_ARCHIVO": {
-      const { ref, columna, archivoId } = action.payload;
-      return actualizarHoja(materias, ref, (hoja) => ({
-        tablero: { ...hoja.tablero, [columna]: hoja.tablero[columna].filter((a) => a.id !== archivoId) },
-      }));
-    }
-
-    case "COMPARTIR": {
-      const { ref } = action.payload;
-      return actualizarHoja(materias, ref, (hoja) => ({ vecesCompartido: hoja.vecesCompartido + 1 }));
-    }
-
-    case "EDITAR_MATERIA": {
-      const { materiaId, nombre } = action.payload;
-      return materias.map((materia) => (materia.id !== materiaId ? materia : { ...materia, nombre }));
-    }
-
-    case "EDITAR_CATEDRA": {
-      const { materiaId, catedraId, nombre } = action.payload;
-      return materias.map((materia) =>
-        materia.id !== materiaId
-          ? materia
-          : {
-              ...materia,
-              catedras: materia.catedras.map((catedra) =>
-                catedra.id !== catedraId ? catedra : { ...catedra, nombre }
-              ),
-            }
-      );
-    }
-
-    // A partir de acá: acciones del backoffice (editar todos los campos,
-    // eliminar). Las de arriba las usa el flujo normal de Resúmenes.
-    case "EDITAR_MATERIA_COMPLETA": {
-      const { materiaId, cambios } = action.payload;
-      return materias.map((materia) => (materia.id !== materiaId ? materia : { ...materia, ...cambios }));
-    }
-
-    case "EDITAR_CATEDRA_COMPLETA": {
-      const { materiaId, catedraId, cambios } = action.payload;
-      return materias.map((materia) =>
-        materia.id !== materiaId
-          ? materia
-          : {
-              ...materia,
-              catedras: materia.catedras.map((catedra) =>
-                catedra.id !== catedraId ? catedra : { ...catedra, ...cambios }
-              ),
-            }
-      );
-    }
-
-    case "EDITAR_COMISION": {
-      const { materiaId, catedraId, comisionId, cambios } = action.payload;
-      return materias.map((materia) =>
-        materia.id !== materiaId
-          ? materia
-          : {
-              ...materia,
-              catedras: materia.catedras.map((catedra) =>
-                catedra.id !== catedraId
-                  ? catedra
-                  : {
-                      ...catedra,
-                      comisiones: catedra.comisiones.map((comision) =>
-                        comision.id !== comisionId ? comision : { ...comision, ...cambios }
-                      ),
-                    }
-              ),
-            }
-      );
-    }
-
-    case "ELIMINAR_MATERIA": {
-      const { materiaId } = action.payload;
-      return materias.filter((materia) => materia.id !== materiaId);
-    }
-
-    case "ELIMINAR_CATEDRA": {
-      const { materiaId, catedraId } = action.payload;
-      return materias.map((materia) =>
-        materia.id !== materiaId
-          ? materia
-          : { ...materia, catedras: materia.catedras.filter((c) => c.id !== catedraId) }
-      );
-    }
-
-    case "ELIMINAR_COMISION": {
-      const { materiaId, catedraId, comisionId } = action.payload;
-      return materias.map((materia) =>
-        materia.id !== materiaId
-          ? materia
-          : {
-              ...materia,
-              catedras: materia.catedras.map((catedra) =>
-                catedra.id !== catedraId
-                  ? catedra
-                  : { ...catedra, comisiones: catedra.comisiones.filter((co) => co.id !== comisionId) }
-              ),
-            }
-      );
-    }
-
-    default:
-      return materias;
   }
+  await Promise.all(tareas);
+
+  return materias.map((materia) => ({
+    ...materia,
+    catedras: materia.catedras.map((catedra) => ({
+      ...catedra,
+      ...porCatedra.get(catedra.id),
+      comisiones: catedra.comisiones.map((comision) => ({ ...comision, ...porComision.get(comision.id) })),
+    })),
+  }));
 }
 
 export function MateriasProvider({ children }) {
-  const [materias, dispatch] = useReducer(reducer, materiasIniciales);
+  const { estaAutenticado, cargandoSesion, usuario } = useAuth();
+  const [materias, setMaterias] = useState([]);
+  const [cargando, setCargando] = useState(true);
   // Cola de envío: lista de refs de hojas "preparadas" para compartir en tanda.
-  // Vive aparte del reducer de materias porque es una selección temporal de UI,
-  // no un dato del dominio (no se guarda como parte de ninguna materia).
+  // Vive aparte del árbol de materias porque es una selección temporal de UI,
+  // no un dato del dominio.
   const [colaEnvio, setColaEnvio] = useState([]);
-  // Pedidos: historial de "a quién se le compartió qué resumen(es)" (pestaña
-  // Ventas). Un pedido agrupa TODOS los resúmenes que se mandaron juntos en
-  // una misma tanda (por eso "Compartir todo" de la cola arma un solo pedido
-  // con varios resúmenes adentro, en vez de uno por cada uno). Igual que
-  // colaEnvio, vive aparte porque no es un dato de una Materia puntual.
-  const [pedidos, setPedidos] = useState(pedidosIniciales);
+  const [pedidos, setPedidos] = useState([]);
+  const [cargandoPedidos, setCargandoPedidos] = useState(true);
 
-  // Las 3 acciones de creación generan el id ANTES de despachar y lo devuelven:
-  // así el componente que las llama (ej. "Seguir preparando" con 0 cátedras)
-  // puede navegar de inmediato a la ruta del elemento recién creado.
-  const crearMateria = useCallback((datos) => {
-    const id = generarId();
-    dispatch({ type: "CREAR_MATERIA", payload: { id, ...datos } });
-    return id;
+  useEffect(() => {
+    if (cargandoSesion) return;
+    if (!estaAutenticado || usuario.rol === ROLES.USUARIO) {
+      setMaterias([]);
+      setCargando(false);
+      setPedidos([]);
+      setCargandoPedidos(false);
+      return;
+    }
+    let cancelado = false;
+    setCargando(true);
+    materiasApi
+      .listarMaterias()
+      .then((datos) => cargarTablerosDelArbol(datos.map(normalizarMateria)))
+      .then((arbol) => {
+        if (!cancelado) setMaterias(arbol);
+      })
+      .catch(() => {
+        if (!cancelado) setMaterias([]);
+      })
+      .finally(() => {
+        if (!cancelado) setCargando(false);
+      });
+
+    setCargandoPedidos(true);
+    pedidosApi
+      .listarPedidos()
+      .then((datos) => {
+        if (!cancelado) setPedidos(datos);
+      })
+      .catch(() => {
+        if (!cancelado) setPedidos([]);
+      })
+      .finally(() => {
+        if (!cancelado) setCargandoPedidos(false);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [estaAutenticado, cargandoSesion, usuario?.rol]);
+
+  // Vuelve a pedir el tablero de UNA hoja puntual y lo mergea en el árbol —
+  // se usa después de cualquier acción que lo modifique (subir/mover/eliminar
+  // archivo, compartir), en vez de re-pedir todo el árbol de materias.
+  const refrescarTablero = useCallback(async (ref) => {
+    const resultado =
+      ref.comisionId == null
+        ? await tablerosApi.obtenerTableroDeCatedra(ref.catedraId)
+        : await tablerosApi.obtenerTableroDeComision(ref.comisionId);
+    setMaterias((prev) => actualizarHoja(prev, ref, () => resultado));
+    return resultado;
   }, []);
-  const crearCatedra = useCallback((materiaId, datos) => {
-    const id = generarId();
-    dispatch({ type: "CREAR_CATEDRA", payload: { materiaId, id, ...datos } });
-    return id;
+
+  const crearMateria = useCallback(async (datos) => {
+    const nueva = await materiasApi.crearMateria(datos);
+    setMaterias((prev) => [...prev, normalizarMateria({ ...nueva, catedras: [] })]);
+    return nueva.id;
   }, []);
-  const crearComision = useCallback((materiaId, catedraId, datos) => {
-    const id = generarId();
-    dispatch({ type: "CREAR_COMISION", payload: { materiaId, catedraId, id, ...datos } });
-    return id;
+
+  const crearCatedra = useCallback(async (materiaId, datos) => {
+    const nueva = await materiasApi.crearCatedra(materiaId, datos);
+    const tableroInfo = await tablerosApi.obtenerTableroDeCatedra(nueva.id);
+    const catedraNormalizada = { ...normalizarCatedra({ ...nueva, comisiones: [] }), ...tableroInfo };
+    setMaterias((prev) =>
+      prev.map((m) => (m.id !== materiaId ? m : { ...m, catedras: [...m.catedras, catedraNormalizada] }))
+    );
+    return nueva.id;
   }, []);
+
+  const crearComision = useCallback(async (materiaId, catedraId, datos) => {
+    const nueva = await materiasApi.crearComision(catedraId, datos);
+    const tableroInfo = await tablerosApi.obtenerTableroDeComision(nueva.id);
+    const comisionNormalizada = { ...normalizarComision(nueva), ...tableroInfo };
+    setMaterias((prev) =>
+      prev.map((m) =>
+        m.id !== materiaId
+          ? m
+          : {
+              ...m,
+              catedras: m.catedras.map((c) =>
+                c.id !== catedraId ? c : { ...c, comisiones: [...c.comisiones, comisionNormalizada] }
+              ),
+            }
+      )
+    );
+    return nueva.id;
+  }, []);
+
   const subirArchivos = useCallback(
-    (ref, columna, archivos) => dispatch({ type: "SUBIR_ARCHIVOS", payload: { ref, columna, archivos } }),
-    []
+    async (ref, columna, archivos) => {
+      const hoja = getHoja(materias, ref);
+      if (!hoja) return;
+      // El input de archivos permite elegir varios a la vez; la API sube de a
+      // uno — se mandan en paralelo y se refresca el tablero una sola vez.
+      await Promise.all(archivos.map((archivo) => tablerosApi.subirArchivo(hoja.tableroId, archivo.nombre, columna)));
+      await refrescarTablero(ref);
+    },
+    [materias, refrescarTablero]
   );
-  const moverArchivo = useCallback(
-    (ref, archivoId, columnaOrigen, columnaDestino) =>
-      dispatch({ type: "MOVER_ARCHIVO", payload: { ref, archivoId, columnaOrigen, columnaDestino } }),
-    []
-  );
-  // Comparte una o varias hojas de una sola vez, agrupadas en UN pedido (un
-  // contacto + una fecha + la lista de resúmenes mandados juntos), y deja el
-  // registro para la pestaña Ventas. Usa `materias` del closure para resolver
-  // los nombres — está bien porque solo se llama sincrónicamente.
-  const registrarPedido = useCallback(
-    (refs, { contactoNombre, contactoTelefono, precio }) => {
-      const resumenes = refs
-        .map((ref) => {
-          const materia = materias.find((m) => m.id === ref.materiaId);
-          const catedra = materia?.catedras.find((c) => c.id === ref.catedraId);
-          const hoja = getHoja(materias, ref);
-          if (!materia || !catedra || !hoja) return null;
-          return {
-            materiaId: materia.id,
-            materiaNombre: materia.nombre,
-            catedraId: catedra.id,
-            catedraNombre: catedra.nombre,
-            comisionId: ref.comisionId ?? null,
-            comisionNombre: ref.comisionId != null ? hoja.nombre : null,
-            resumenNombre: hoja.nombre,
-            anio: materia.anio,
-          };
-        })
-        .filter(Boolean);
-      if (resumenes.length === 0) return;
 
-      const nuevoPedido = {
-        id: generarId(),
+  const moverArchivo = useCallback(
+    async (ref, archivoId, columnaOrigen, columnaDestino) => {
+      if (columnaOrigen === columnaDestino) return;
+      // La regla de "copiar en vez de mover" al llegar a 'listo' (con la
+      // conversión simulada Word->PDF) ya vive en el backend (ArchivoService).
+      await tablerosApi.moverArchivo(archivoId, columnaDestino);
+      await refrescarTablero(ref);
+    },
+    [refrescarTablero]
+  );
+
+  const eliminarArchivo = useCallback(
+    async (ref, columna, archivoId) => {
+      await tablerosApi.eliminarArchivo(archivoId);
+      await refrescarTablero(ref);
+    },
+    [refrescarTablero]
+  );
+
+  // Comparte una o varias hojas de una sola vez, agrupadas en UN pedido (un
+  // contacto + una fecha + la lista de resúmenes mandados juntos). El backend
+  // registra el pedido Y suma +1 a "veces compartido" de cada tablero
+  // incluido en una sola operación — acá solo se refrescan esas hojas después.
+  const registrarPedido = useCallback(
+    async (refs, { contactoNombre, contactoTelefono, precio }) => {
+      const refsValidos = refs.filter((ref) => getHoja(materias, ref)?.tableroId != null);
+      if (refsValidos.length === 0) return;
+
+      const nuevoPedido = await pedidosApi.crearPedido({
         contactoNombre,
         contactoTelefono,
         precio: precio || null,
-        fecha: new Date().toISOString().slice(0, 10),
-        resumenes,
-      };
-
+        tableroIds: refsValidos.map((ref) => getHoja(materias, ref).tableroId),
+      });
       setPedidos((prev) => [nuevoPedido, ...prev]);
-      refs.forEach((ref) => dispatch({ type: "COMPARTIR", payload: { ref } }));
+      await Promise.all(refsValidos.map((ref) => refrescarTablero(ref)));
     },
-    [materias]
+    [materias, refrescarTablero]
   );
-  const editarMateria = useCallback(
-    (materiaId, nombre) => dispatch({ type: "EDITAR_MATERIA", payload: { materiaId, nombre } }),
-    []
-  );
-  const editarCatedra = useCallback(
-    (materiaId, catedraId, nombre) => dispatch({ type: "EDITAR_CATEDRA", payload: { materiaId, catedraId, nombre } }),
-    []
-  );
-  const eliminarArchivo = useCallback(
-    (ref, columna, archivoId) => dispatch({ type: "ELIMINAR_ARCHIVO", payload: { ref, columna, archivoId } }),
-    []
-  );
+
+  const editarMateria = useCallback(async (materiaId, nombre) => {
+    await materiasApi.actualizarMateria(materiaId, { nombre });
+    setMaterias((prev) => prev.map((m) => (m.id !== materiaId ? m : { ...m, nombre })));
+  }, []);
+
+  const editarCatedra = useCallback(async (materiaId, catedraId, nombre) => {
+    await materiasApi.actualizarCatedra(catedraId, { nombre });
+    setMaterias((prev) =>
+      prev.map((m) =>
+        m.id !== materiaId ? m : { ...m, catedras: m.catedras.map((c) => (c.id !== catedraId ? c : { ...c, nombre })) }
+      )
+    );
+  }, []);
 
   // --- Backoffice (Administrador): editar todos los campos / eliminar ---
-  const editarMateriaCompleta = useCallback(
-    (materiaId, cambios) => dispatch({ type: "EDITAR_MATERIA_COMPLETA", payload: { materiaId, cambios } }),
-    []
-  );
-  const editarCatedraCompleta = useCallback(
-    (materiaId, catedraId, cambios) =>
-      dispatch({ type: "EDITAR_CATEDRA_COMPLETA", payload: { materiaId, catedraId, cambios } }),
-    []
-  );
-  const editarComision = useCallback(
-    (materiaId, catedraId, comisionId, cambios) =>
-      dispatch({ type: "EDITAR_COMISION", payload: { materiaId, catedraId, comisionId, cambios } }),
-    []
-  );
-  const eliminarMateria = useCallback(
-    (materiaId) => dispatch({ type: "ELIMINAR_MATERIA", payload: { materiaId } }),
-    []
-  );
-  const eliminarCatedra = useCallback(
-    (materiaId, catedraId) => dispatch({ type: "ELIMINAR_CATEDRA", payload: { materiaId, catedraId } }),
-    []
-  );
-  const eliminarComision = useCallback(
-    (materiaId, catedraId, comisionId) =>
-      dispatch({ type: "ELIMINAR_COMISION", payload: { materiaId, catedraId, comisionId } }),
-    []
-  );
-  const eliminarPedido = useCallback((pedidoId) => {
+  const editarMateriaCompleta = useCallback(async (materiaId, cambios) => {
+    await materiasApi.actualizarMateria(materiaId, cambios);
+    setMaterias((prev) => prev.map((m) => (m.id !== materiaId ? m : { ...m, ...cambios })));
+  }, []);
+
+  const editarCatedraCompleta = useCallback(async (materiaId, catedraId, cambios) => {
+    await materiasApi.actualizarCatedra(catedraId, cambios);
+    setMaterias((prev) =>
+      prev.map((m) =>
+        m.id !== materiaId
+          ? m
+          : { ...m, catedras: m.catedras.map((c) => (c.id !== catedraId ? c : { ...c, ...cambios })) }
+      )
+    );
+  }, []);
+
+  const editarComision = useCallback(async (materiaId, catedraId, comisionId, cambios) => {
+    await materiasApi.actualizarComision(comisionId, cambios);
+    setMaterias((prev) =>
+      prev.map((m) =>
+        m.id !== materiaId
+          ? m
+          : {
+              ...m,
+              catedras: m.catedras.map((c) =>
+                c.id !== catedraId
+                  ? c
+                  : { ...c, comisiones: c.comisiones.map((co) => (co.id !== comisionId ? co : { ...co, ...cambios })) }
+              ),
+            }
+      )
+    );
+  }, []);
+
+  const eliminarMateria = useCallback(async (materiaId) => {
+    await materiasApi.eliminarMateria(materiaId);
+    setMaterias((prev) => prev.filter((m) => m.id !== materiaId));
+  }, []);
+
+  const eliminarCatedra = useCallback(async (materiaId, catedraId) => {
+    await materiasApi.eliminarCatedra(catedraId);
+    setMaterias((prev) =>
+      prev.map((m) => (m.id !== materiaId ? m : { ...m, catedras: m.catedras.filter((c) => c.id !== catedraId) }))
+    );
+  }, []);
+
+  const eliminarComision = useCallback(async (materiaId, catedraId, comisionId) => {
+    await materiasApi.eliminarComision(comisionId);
+    setMaterias((prev) =>
+      prev.map((m) =>
+        m.id !== materiaId
+          ? m
+          : {
+              ...m,
+              catedras: m.catedras.map((c) =>
+                c.id !== catedraId ? c : { ...c, comisiones: c.comisiones.filter((co) => co.id !== comisionId) }
+              ),
+            }
+      )
+    );
+  }, []);
+
+  const eliminarPedido = useCallback(async (pedidoId) => {
+    await pedidosApi.eliminarPedido(pedidoId);
     setPedidos((prev) => prev.filter((p) => p.id !== pedidoId));
   }, []);
 
@@ -378,11 +338,9 @@ export function MateriasProvider({ children }) {
     setColaEnvio((prev) => prev.filter((r) => refHojaKey(r) !== refHojaKey(ref)));
   }, []);
   const vaciarColaEnvio = useCallback(() => setColaEnvio([]), []);
-  // "Compartir todo": arma UN pedido con todos los resúmenes de la cola (se
-  // asume que se le mandan juntos a esa persona) y vacía la cola.
   const compartirCola = useCallback(
-    (contacto) => {
-      registrarPedido(colaEnvio, contacto);
+    async (contacto) => {
+      await registrarPedido(colaEnvio, contacto);
       setColaEnvio([]);
     },
     [colaEnvio, registrarPedido]
@@ -390,6 +348,7 @@ export function MateriasProvider({ children }) {
 
   const value = {
     materias,
+    cargando,
     crearMateria,
     crearCatedra,
     crearComision,
@@ -405,6 +364,7 @@ export function MateriasProvider({ children }) {
     vaciarColaEnvio,
     compartirCola,
     pedidos,
+    cargandoPedidos,
     editarMateriaCompleta,
     editarCatedraCompleta,
     editarComision,
