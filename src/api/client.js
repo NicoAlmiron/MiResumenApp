@@ -29,28 +29,28 @@ function mensajeDeDetail(detail) {
 // Wrapper de fetch: arma la URL completa, agrega el JWT si hay uno guardado,
 // parsea JSON de la respuesta y convierte los no-2xx en ApiError con el
 // `detail` que ya manda la API (mismo formato visto al probarla con curl/PowerShell).
-export async function apiFetch(path, { method = "GET", body, headers, ...resto } = {}) {
+// Si `body` es un FormData (subida de archivos), no se serializa a JSON ni
+// se fuerza el Content-Type — el navegador arma el "multipart/form-data;
+// boundary=..." solo, y si nosotros mandamos otro Content-Type lo pisa mal.
+export async function apiFetch(path, { method = "GET", body, headers, raw = false, ...resto } = {}) {
   const token = leerToken();
+  const esFormData = body instanceof FormData;
 
   let respuesta;
   try {
     respuesta = await fetch(`${BASE_URL}${path}`, {
       method,
       headers: {
-        "Content-Type": "application/json",
+        ...(esFormData ? {} : { "Content-Type": "application/json" }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...headers,
       },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: esFormData ? body : body !== undefined ? JSON.stringify(body) : undefined,
       ...resto,
     });
   } catch {
     throw new ApiError("No se pudo conectar con el servidor.", 0);
   }
-
-  if (respuesta.status === 204) return null;
-
-  const datos = await respuesta.json().catch(() => null);
 
   if (!respuesta.ok) {
     if (respuesta.status === 401) {
@@ -60,8 +60,11 @@ export async function apiFetch(path, { method = "GET", body, headers, ...resto }
         // si falla, la sesión sigue vencida igual en el próximo request
       }
     }
+    const datos = await respuesta.json().catch(() => null);
     throw new ApiError(mensajeDeDetail(datos?.detail), respuesta.status);
   }
 
-  return datos;
+  if (raw) return respuesta;
+  if (respuesta.status === 204) return null;
+  return respuesta.json().catch(() => null);
 }

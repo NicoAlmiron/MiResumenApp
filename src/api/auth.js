@@ -4,7 +4,7 @@ import { apiFetch } from "./client";
 // esto ya coincide con lo que el resto de la app espera de un usuario
 // público (ver AuthContext.jsx `aPublico`), salvo el nombre del campo.
 function aUsuarioPublico(u) {
-  return { id: u.id, nombreUsuario: u.nombre_usuario, rol: u.rol, googleId: u.google_id };
+  return { id: u.id, nombreUsuario: u.nombre_usuario, rol: u.rol, googleId: u.google_id, driveConectado: u.drive_conectado };
 }
 
 export async function login(nombreUsuario, password) {
@@ -65,5 +65,15 @@ export async function vincularGoogle(idToken) {
 
 export async function desvincularGoogle() {
   const datos = await apiFetch("/auth/me/google", { method: "DELETE" });
+  return aUsuarioPublico(datos);
+}
+
+export async function conectarDrive(code) {
+  const datos = await apiFetch("/auth/me/drive", { method: "POST", body: { code } });
+  return aUsuarioPublico(datos);
+}
+
+export async function desconectarDrive() {
+  const datos = await apiFetch("/auth/me/drive", { method: "DELETE" });
   return aUsuarioPublico(datos);
 }

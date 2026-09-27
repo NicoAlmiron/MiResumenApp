@@ -21,11 +21,10 @@ export default function TableroKanban({ hoja, refHoja }) {
     moverArchivo(refHoja, Number(draggableId), source.droppableId, destination.droppableId);
   }
 
-  // Solo se manda el nombre: el backend genera el id y calcula la extensión,
-  // y todavía no hay integración real con Drive (no hay bytes que subir).
+  // Se mandan los File reales: el backend los sube a Drive y genera
+  // id/extensión a partir de ahí.
   function handleSubir(columnaKey, fileList) {
-    const nuevosArchivos = Array.from(fileList).map((file) => ({ nombre: file.name }));
-    subirArchivos(refHoja, columnaKey, nuevosArchivos);
+    subirArchivos(refHoja, columnaKey, Array.from(fileList));
   }
 
   return (

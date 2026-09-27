@@ -1,5 +1,6 @@
-import { Card } from "react-bootstrap";
-import { descargarArchivo } from "../../utils/descargarArchivo";
+import { useState } from "react";
+import { Card, Spinner } from "react-bootstrap";
+import { descargarArchivoDelTablero } from "../../api/tableros";
 
 const ICONOS_POR_EXTENSION = {
   pdf: "📕",
@@ -16,12 +17,22 @@ const ICONOS_POR_EXTENSION = {
 
 // Tarjeta de un archivo dentro de una columna del tablero. Arriba tiene dos
 // "badges" circulares (estilo controles de ventana, pero acá son descargar/
-// eliminar). `onMoverSiguiente` es null en la última columna. La descarga solo
-// funciona si tenemos el archivo real (`archivoOriginal`): los datos de
-// ejemplo y las copias "convertidas" a PDF no tienen bytes reales detrás.
+// eliminar). `onMoverSiguiente` es null en la última columna. La descarga
+// pega al backend, que a su vez lo pide a Drive con el token de quien lo
+// subió — por eso es async, no un simple link directo.
 export default function ArchivoCard({ archivo, dragging, onMoverSiguiente, onEliminar }) {
   const icono = ICONOS_POR_EXTENSION[archivo.extension?.toLowerCase()] ?? "📎";
-  const puedeDescargar = Boolean(archivo.archivoOriginal);
+  const [descargando, setDescargando] = useState(false);
+
+  async function handleDescargar(e) {
+    e.stopPropagation();
+    setDescargando(true);
+    try {
+      await descargarArchivoDelTablero(archivo.id, archivo.nombre);
+    } finally {
+      setDescargando(false);
+    }
+  }
 
   return (
     <Card className={`archivo-card position-relative mb-2 ${dragging ? "archivo-card--dragging" : ""}`}>
@@ -29,14 +40,11 @@ export default function ArchivoCard({ archivo, dragging, onMoverSiguiente, onEli
         <button
           type="button"
           className="mini-badge-btn mini-badge-btn--descargar"
-          title={puedeDescargar ? "Descargar" : "Sin archivo real para descargar (dato de ejemplo)"}
-          disabled={!puedeDescargar}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (puedeDescargar) descargarArchivo(archivo.archivoOriginal, archivo.nombre);
-          }}
+          title="Descargar"
+          disabled={descargando}
+          onClick={handleDescargar}
         >
-          <i className="bi bi-download" aria-hidden="true" />
+          {descargando ? <Spinner animation="border" size="sm" /> : <i className="bi bi-download" aria-hidden="true" />}
         </button>
         <button
           type="button"

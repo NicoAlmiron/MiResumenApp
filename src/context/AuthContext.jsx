@@ -173,6 +173,37 @@ export function AuthProvider({ children }) {
     }
   }, [usuario]);
 
+  // Conecta el Drive del usuario logueado. `code` es el código de
+  // autorización de un solo uso que devuelve el flujo "auth-code" de Google
+  // en el navegador — el backend lo canjea por un refresh_token (necesita el
+  // Client Secret, por eso ese paso no puede pasar acá).
+  const conectarDrive = useCallback(
+    async (code) => {
+      if (!usuario) return "No hay sesión activa.";
+      try {
+        const actualizado = await authApi.conectarDrive(code);
+        setUsuario(actualizado);
+        guardarSesion({ token: leerSesionGuardada()?.token, usuario: actualizado });
+        return null;
+      } catch (err) {
+        return err instanceof ApiError ? err.message : "No se pudo conectar Google Drive.";
+      }
+    },
+    [usuario]
+  );
+
+  const desconectarDrive = useCallback(async () => {
+    if (!usuario) return "No hay sesión activa.";
+    try {
+      const actualizado = await authApi.desconectarDrive();
+      setUsuario(actualizado);
+      guardarSesion({ token: leerSesionGuardada()?.token, usuario: actualizado });
+      return null;
+    } catch (err) {
+      return err instanceof ApiError ? err.message : "No se pudo desconectar Google Drive.";
+    }
+  }, [usuario]);
+
   const value = {
     usuario,
     estaAutenticado: usuario != null,
@@ -187,6 +218,8 @@ export function AuthProvider({ children }) {
     eliminarUsuario,
     vincularGoogle,
     desvincularGoogle,
+    conectarDrive,
+    desconectarDrive,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

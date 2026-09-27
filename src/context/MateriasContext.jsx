@@ -201,9 +201,10 @@ export function MateriasProvider({ children }) {
     async (ref, columna, archivos) => {
       const hoja = getHoja(materias, ref);
       if (!hoja) return;
-      // El input de archivos permite elegir varios a la vez; la API sube de a
-      // uno — se mandan en paralelo y se refresca el tablero una sola vez.
-      await Promise.all(archivos.map((archivo) => tablerosApi.subirArchivo(hoja.tableroId, archivo.nombre, columna)));
+      // `archivos` son File reales (input/drag&drop); el input permite elegir
+      // varios a la vez, la API sube de a uno — se mandan en paralelo y se
+      // refresca el tablero una sola vez.
+      await Promise.all(archivos.map((archivo) => tablerosApi.subirArchivo(hoja.tableroId, archivo, columna)));
       await refrescarTablero(ref);
     },
     [materias, refrescarTablero]

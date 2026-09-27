@@ -1,4 +1,5 @@
 import { apiFetch } from "./client";
+import { descargarArchivo as dispararDescarga } from "../utils/descargarArchivo";
 
 const COLUMNA_BACKEND_A_FRONTEND = { documentos: "documentos", en_edicion: "enEdicion", listo: "listo" };
 
@@ -28,11 +29,13 @@ export async function obtenerTableroDeComision(comisionId) {
 
 const COLUMNA_FRONTEND_A_BACKEND = { documentos: "documentos", enEdicion: "en_edicion", listo: "listo" };
 
-export async function subirArchivo(tableroId, nombre, columnaFrontend) {
-  return apiFetch(`/tableros/${tableroId}/archivos`, {
-    method: "POST",
-    body: { nombre, columna: COLUMNA_FRONTEND_A_BACKEND[columnaFrontend] },
-  });
+// `archivo` es el File real (input/drag&drop) — se manda como multipart, el
+// backend lo sube a Drive antes de guardar la fila.
+export async function subirArchivo(tableroId, archivo, columnaFrontend) {
+  const form = new FormData();
+  form.append("archivo", archivo);
+  form.append("columna", COLUMNA_FRONTEND_A_BACKEND[columnaFrontend]);
+  return apiFetch(`/tableros/${tableroId}/archivos`, { method: "POST", body: form });
 }
 
 export async function moverArchivo(archivoId, columnaDestinoFrontend) {
@@ -44,4 +47,11 @@ export async function moverArchivo(archivoId, columnaDestinoFrontend) {
 
 export async function eliminarArchivo(archivoId) {
   await apiFetch(`/archivos/${archivoId}`, { method: "DELETE" });
+}
+
+// Trae el archivo real desde el backend (que a su vez lo pide a Drive con el
+// token de quien lo subió) y dispara la descarga en el navegador.
+export async function descargarArchivoDelTablero(archivoId, nombre) {
+  const respuesta = await apiFetch(`/archivos/${archivoId}/descargar`, { raw: true });
+  dispararDescarga(await respuesta.blob(), nombre);
 }
