@@ -2,15 +2,19 @@ import { useRef } from "react";
 import { Droppable, Draggable } from "@hello-pangea/dnd";
 import { Button, Badge } from "react-bootstrap";
 import ArchivoCard from "./ArchivoCard";
+import ArchivoCardSubiendo from "./ArchivoCardSubiendo";
 import { useFileDrop } from "../../hooks/useFileDrop";
 
 // Una columna del Kanban. `permiteSubir` habilita el botón "Subir documentos"
 // (cuando está vacía) y el drag-and-drop de archivos del sistema operativo
 // (en cualquier momento, no solo vacía) — eso es RF-06/RF-07 del doc de requisitos.
+// `archivosSubiendo` son nombres todavía en vuelo (POST sin confirmar) — se
+// muestran como tarjetas fantasma con spinner, no son Draggable todavía.
 export default function ColumnaTablero({
   columnaKey,
   titulo,
   archivos,
+  archivosSubiendo = [],
   permiteSubir,
   onSubirArchivos,
   onMoverSiguiente,
@@ -36,7 +40,7 @@ export default function ColumnaTablero({
             {...provided.droppableProps}
             className={`kanban-columna__body ${snapshot.isDraggingOver ? "kanban-columna__body--over" : ""}`}
           >
-            {archivos.length === 0 && permiteSubir && (
+            {archivos.length === 0 && archivosSubiendo.length === 0 && permiteSubir && (
               <Button
                 variant="outline-info"
                 size="sm"
@@ -47,7 +51,7 @@ export default function ColumnaTablero({
                 Subir documentos
               </Button>
             )}
-            {archivos.length === 0 && !permiteSubir && (
+            {archivos.length === 0 && archivosSubiendo.length === 0 && !permiteSubir && (
               <p className="text-body-secondary small text-center mb-0">
                 <i className="bi bi-inbox d-block fs-4 mb-1" aria-hidden="true" />
                 Arrastrá acá los archivos listos.
@@ -67,6 +71,9 @@ export default function ColumnaTablero({
                   </div>
                 )}
               </Draggable>
+            ))}
+            {archivosSubiendo.map((pendiente) => (
+              <ArchivoCardSubiendo key={pendiente.id} nombre={pendiente.nombre} />
             ))}
             {provided.placeholder}
           </div>

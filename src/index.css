@@ -400,6 +400,11 @@ body {
   border-color: var(--bs-primary);
 }
 
+.archivo-card--subiendo {
+  opacity: 0.7;
+  border-style: dashed;
+}
+
 /* Controles superiores de una tarjeta de archivo (descargar / eliminar),
    estilo "controles de ventana" en miniatura. La misma clase .mini-badge-btn
    se reutiliza en el modal de la cola de envío para el botón de eliminar. */

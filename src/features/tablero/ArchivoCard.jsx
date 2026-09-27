@@ -1,19 +1,7 @@
 import { useState } from "react";
 import { Card, Spinner } from "react-bootstrap";
 import { descargarArchivoDelTablero } from "../../api/tableros";
-
-const ICONOS_POR_EXTENSION = {
-  pdf: "📕",
-  doc: "📄",
-  docx: "📄",
-  xlsx: "📊",
-  xls: "📊",
-  pptx: "📽️",
-  ppt: "📽️",
-  png: "🖼️",
-  jpg: "🖼️",
-  jpeg: "🖼️",
-};
+import { iconoPorExtension } from "../../utils/iconoArchivo";
 
 // Tarjeta de un archivo dentro de una columna del tablero. Arriba tiene dos
 // "badges" circulares (estilo controles de ventana, pero acá son descargar/
@@ -21,7 +9,7 @@ const ICONOS_POR_EXTENSION = {
 // pega al backend, que a su vez lo pide a Drive con el token de quien lo
 // subió — por eso es async, no un simple link directo.
 export default function ArchivoCard({ archivo, dragging, onMoverSiguiente, onEliminar }) {
-  const icono = ICONOS_POR_EXTENSION[archivo.extension?.toLowerCase()] ?? "📎";
+  const icono = iconoPorExtension(archivo.extension);
   const [descargando, setDescargando] = useState(false);
 
   async function handleDescargar(e) {
