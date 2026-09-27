@@ -143,6 +143,36 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  // Vincula la cuenta de Google del usuario logueado (guarda su google_id).
+  // `idToken` es el JWT que devuelve el botón de Google en el navegador, sin
+  // verificar todavía — la verificación de firma pasa en el backend.
+  const vincularGoogle = useCallback(
+    async (idToken) => {
+      if (!usuario) return "No hay sesión activa.";
+      try {
+        const actualizado = await authApi.vincularGoogle(idToken);
+        setUsuario(actualizado);
+        guardarSesion({ token: leerSesionGuardada()?.token, usuario: actualizado });
+        return null;
+      } catch (err) {
+        return err instanceof ApiError ? err.message : "No se pudo vincular la cuenta de Google.";
+      }
+    },
+    [usuario]
+  );
+
+  const desvincularGoogle = useCallback(async () => {
+    if (!usuario) return "No hay sesión activa.";
+    try {
+      const actualizado = await authApi.desvincularGoogle();
+      setUsuario(actualizado);
+      guardarSesion({ token: leerSesionGuardada()?.token, usuario: actualizado });
+      return null;
+    } catch (err) {
+      return err instanceof ApiError ? err.message : "No se pudo desvincular la cuenta de Google.";
+    }
+  }, [usuario]);
+
   const value = {
     usuario,
     estaAutenticado: usuario != null,
@@ -155,6 +185,8 @@ export function AuthProvider({ children }) {
     cambiarPassword,
     cambiarRolUsuario,
     eliminarUsuario,
+    vincularGoogle,
+    desvincularGoogle,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

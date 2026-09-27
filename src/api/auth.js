@@ -4,7 +4,7 @@ import { apiFetch } from "./client";
 // esto ya coincide con lo que el resto de la app espera de un usuario
 // público (ver AuthContext.jsx `aPublico`), salvo el nombre del campo.
 function aUsuarioPublico(u) {
-  return { id: u.id, nombreUsuario: u.nombre_usuario, rol: u.rol };
+  return { id: u.id, nombreUsuario: u.nombre_usuario, rol: u.rol, googleId: u.google_id };
 }
 
 export async function login(nombreUsuario, password) {
@@ -56,4 +56,14 @@ export async function cambiarRolUsuario(id, rol) {
 
 export async function eliminarUsuario(id) {
   await apiFetch(`/usuarios/${id}`, { method: "DELETE" });
+}
+
+export async function vincularGoogle(idToken) {
+  const datos = await apiFetch("/auth/me/google", { method: "PUT", body: { id_token: idToken } });
+  return aUsuarioPublico(datos);
+}
+
+export async function desvincularGoogle() {
+  const datos = await apiFetch("/auth/me/google", { method: "DELETE" });
+  return aUsuarioPublico(datos);
 }

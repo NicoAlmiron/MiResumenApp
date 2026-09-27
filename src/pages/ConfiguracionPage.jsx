@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Container, Card, Form, Button, Alert, Badge } from "react-bootstrap";
+import { Container, Card, Form, Button, Alert, Badge, Spinner } from "react-bootstrap";
+import { GoogleLogin } from "@react-oauth/google";
 import { useAuth } from "../context/AuthContext";
 import { ETIQUETA_ROL, ROLES } from "../data/authMockData";
 
 export default function ConfiguracionPage() {
-  const { usuario, cambiarNombreUsuario, cambiarPassword } = useAuth();
+  const { usuario, cambiarNombreUsuario, cambiarPassword, vincularGoogle, desvincularGoogle } = useAuth();
   // El rol "usuario" solo usa Herramientas — no le corresponde nada de
   // Google Drive/Contactos, así que ni le mostramos esa sección.
   const esUsuario = usuario.rol === ROLES.USUARIO;
@@ -16,6 +17,9 @@ export default function ConfiguracionPage() {
   const [passwordNueva, setPasswordNueva] = useState("");
   const [passwordConfirmar, setPasswordConfirmar] = useState("");
   const [mensajePassword, setMensajePassword] = useState(null);
+
+  const [mensajeGoogle, setMensajeGoogle] = useState(null);
+  const [vinculandoGoogle, setVinculandoGoogle] = useState(false);
 
   async function handleNombre(e) {
     e.preventDefault();
@@ -38,6 +42,20 @@ export default function ConfiguracionPage() {
     setPasswordActual("");
     setPasswordNueva("");
     setPasswordConfirmar("");
+  }
+
+  async function handleGoogleSuccess(credentialResponse) {
+    setVinculandoGoogle(true);
+    const err = await vincularGoogle(credentialResponse.credential);
+    setVinculandoGoogle(false);
+    setMensajeGoogle(err ? { tipo: "danger", texto: err } : { tipo: "success", texto: "Cuenta de Google vinculada." });
+  }
+
+  async function handleDesvincularGoogle() {
+    setVinculandoGoogle(true);
+    const err = await desvincularGoogle();
+    setVinculandoGoogle(false);
+    setMensajeGoogle(err ? { tipo: "danger", texto: err } : { tipo: "success", texto: "Cuenta de Google desvinculada." });
   }
 
   return (
@@ -121,13 +139,40 @@ export default function ConfiguracionPage() {
 
       {!esUsuario && (
         <Card>
-          <Card.Body className="d-flex flex-column gap-2">
+          <Card.Body className="d-flex flex-column gap-3">
             <Card.Title as="h6">Cuenta de Google</Card.Title>
-            <div className="login-hint small">
-              <i className="bi bi-google me-1" aria-hidden="true" />
-              Próximamente: sincronizar tu cuenta de Google (inicio de sesión y Contactos). Requiere credenciales
-              propias de Google Cloud que todavía no están configuradas.
-            </div>
+            {mensajeGoogle && (
+              <Alert variant={mensajeGoogle.tipo} className="py-2 small mb-0">
+                {mensajeGoogle.texto}
+              </Alert>
+            )}
+
+            {vinculandoGoogle ? (
+              <Spinner animation="border" variant="info" size="sm" role="status">
+                <span className="visually-hidden">Cargando...</span>
+              </Spinner>
+            ) : usuario.googleId ? (
+              <>
+                <div className="small text-body-secondary">
+                  <i className="bi bi-check-circle-fill text-success me-1" aria-hidden="true" />
+                  Cuenta de Google vinculada.
+                </div>
+                <Button variant="outline-danger" size="sm" className="align-self-start" onClick={handleDesvincularGoogle}>
+                  Desvincular
+                </Button>
+              </>
+            ) : (
+              <>
+                <div className="login-hint small">
+                  <i className="bi bi-google me-1" aria-hidden="true" />
+                  Vinculá tu cuenta de Google — más adelante habilita sincronizar Drive.
+                </div>
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={() => setMensajeGoogle({ tipo: "danger", texto: "No se pudo iniciar la conexión con Google." })}
+                />
+              </>
+            )}
           </Card.Body>
         </Card>
       )}
