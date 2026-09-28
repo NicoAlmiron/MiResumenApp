@@ -1,6 +1,11 @@
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
 import * as authApi from "../api/auth";
+import { ping } from "../api/salud";
 import { ApiError } from "../api/client";
+
+// Margen respecto a los 15 min que Render deja sin tráfico antes de dormir
+// el servicio (ver AuthContext.jsx useEffect de abajo y app/main.py /salud).
+const INTERVALO_PING_MS = 10 * 60 * 1000;
 
 const AuthContext = createContext(null);
 const CLAVE_STORAGE = "miresumen_auth";
@@ -172,6 +177,15 @@ export function AuthProvider({ children }) {
     } catch (err) {
       return err instanceof ApiError ? err.message : "No se pudo desconectar Google.";
     }
+  }, [usuario]);
+
+  // Mientras haya sesión activa, mantiene despierto al backend (y de paso a
+  // Gotenberg vía /salud) para evitar el "cold start" de Render tras 15 min
+  // sin tráfico. Se corta solo al deslogearse o cerrar la pestaña.
+  useEffect(() => {
+    if (!usuario) return;
+    const id = setInterval(ping, INTERVALO_PING_MS);
+    return () => clearInterval(id);
   }, [usuario]);
 
   const value = {
