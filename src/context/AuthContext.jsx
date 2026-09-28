@@ -181,9 +181,13 @@ export function AuthProvider({ children }) {
 
   // Mientras haya sesión activa, mantiene despierto al backend (y de paso a
   // Gotenberg vía /salud) para evitar el "cold start" de Render tras 15 min
-  // sin tráfico. Se corta solo al deslogearse o cerrar la pestaña.
+  // sin tráfico. El login en sí solo golpea a miresumenapi, no a Gotenberg —
+  // por eso hace falta un ping inmediato acá (setInterval no dispara la
+  // primera vez hasta que pasa el intervalo completo). Se corta solo al
+  // deslogearse o cerrar la pestaña.
   useEffect(() => {
     if (!usuario) return;
+    ping();
     const id = setInterval(ping, INTERVALO_PING_MS);
     return () => clearInterval(id);
   }, [usuario]);
