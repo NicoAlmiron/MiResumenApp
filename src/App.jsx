@@ -21,6 +21,7 @@ const UnirPdfsPage = lazy(() => import("./pages/herramientas/UnirPdfsPage"));
 const PdfAWordPage = lazy(() => import("./pages/herramientas/PdfAWordPage"));
 const WordAPdfPage = lazy(() => import("./pages/herramientas/WordAPdfPage"));
 const AdminPage = lazy(() => import("./pages/AdminPage"));
+const AdminSupervisarPage = lazy(() => import("./pages/AdminSupervisarPage"));
 
 function CargandoHerramienta() {
   return (
@@ -91,13 +92,21 @@ export default function App() {
                 />
                 <Route path="configuracion" element={<ConfiguracionPage />} />
 
-                {/* Backoffice: solo administrador */}
+                {/* Backoffice + supervisión de Resúmenes: solo administrador */}
                 <Route element={<RequireRol roles={[ROLES.ADMINISTRADOR]} />}>
                   <Route
                     path="admin"
                     element={
                       <Suspense fallback={<CargandoHerramienta />}>
                         <AdminPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="resumenes/supervisar/:usuarioId"
+                    element={
+                      <Suspense fallback={<CargandoHerramienta />}>
+                        <AdminSupervisarPage />
                       </Suspense>
                     }
                   />

@@ -6,8 +6,12 @@ import { apiFetch } from "./client";
 // siempre viene como `id`, ver *Out schemas del backend) — no hace falta
 // transformar nada más que agregar `vecesCompartido`/`tablero` (eso lo hace
 // MateriasContext después, con /tableros).
-export async function listarMaterias() {
-  return apiFetch("/materias");
+// `verDeUsuarioId`: solo lo puede usar un administrador, para supervisar el
+// árbol de un boss puntual (ver AdminSupervisarPage.jsx) — sin este param,
+// cada uno pide "las mías".
+export async function listarMaterias(verDeUsuarioId) {
+  const query = verDeUsuarioId != null ? `?ver_de=${verDeUsuarioId}` : "";
+  return apiFetch(`/materias${query}`);
 }
 
 export async function crearMateria(datos) {

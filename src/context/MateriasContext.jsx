@@ -110,7 +110,10 @@ export function MateriasProvider({ children }) {
 
   useEffect(() => {
     if (cargandoSesion) return;
-    if (!estaAutenticado || usuario.rol === ROLES.USUARIO) {
+    // "usuario" (Herramientas nomás) no tiene nada acá. "administrador" ya no
+    // tiene Materias propias — es supervisor puro, ve a los boss como
+    // tarjetas (ver ResumenesPage.jsx) en vez de un árbol propio.
+    if (!estaAutenticado || usuario.rol === ROLES.USUARIO || usuario.rol === ROLES.ADMINISTRADOR) {
       setMaterias([]);
       setCargando(false);
       setPedidos([]);
@@ -327,6 +330,14 @@ export function MateriasProvider({ children }) {
     );
   }, []);
 
+  // Solo para administrador: trae el árbol de UN boss puntual, de solo
+  // lectura — no toca `materias` (que para admin siempre queda vacío), lo
+  // devuelve para que lo guarde quien lo pida (ver AdminSupervisarPage.jsx).
+  const cargarMateriasDeBoss = useCallback(async (usuarioId) => {
+    const datos = await materiasApi.listarMaterias(usuarioId);
+    return cargarTablerosDelArbol(datos.map(normalizarMateria));
+  }, []);
+
   const eliminarPedido = useCallback(async (pedidoId) => {
     await pedidosApi.eliminarPedido(pedidoId);
     setPedidos((prev) => prev.filter((p) => p.id !== pedidoId));
@@ -373,6 +384,7 @@ export function MateriasProvider({ children }) {
     eliminarCatedra,
     eliminarComision,
     eliminarPedido,
+    cargarMateriasDeBoss,
   };
 
   return <MateriasContext.Provider value={value}>{children}</MateriasContext.Provider>;
