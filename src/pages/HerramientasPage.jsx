@@ -14,7 +14,7 @@ const HERRAMIENTAS = [
     ruta: "pdf-a-word",
     icono: "bi-filetype-docx",
     titulo: "PDF a Word",
-    descripcion: "Extrae el texto de un PDF y lo descarga como .docx.",
+    descripcion: "Convierte un PDF a .docx editable.",
   },
   {
     ruta: "word-a-pdf",

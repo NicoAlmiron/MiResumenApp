@@ -8,8 +8,9 @@ import { descargarArchivo } from "../../utils/descargarArchivo";
 import { nombrePorDefecto, conExtension } from "../../utils/nombreArchivo";
 
 // Une varios PDF en uno solo, en el orden que se muestran en la lista.
-// Conversión real y sin pérdida (copia las páginas tal cual con pdf-lib) —
-// a diferencia de PDF↔Word, acá no hace falta ningún "mejor esfuerzo".
+// Sin pérdida (copia las páginas tal cual con pdf-lib), 100% en el
+// navegador — a diferencia de PDF↔Word (ver esas páginas), que ahora
+// convierten de verdad contra el backend (LibreOffice/pdf2docx).
 export default function UnirPdfsPage() {
   const [archivos, setArchivos] = useState([]);
   const [nombreSalida, setNombreSalida] = useState("");

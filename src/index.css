@@ -219,33 +219,6 @@ body {
   opacity: 1;
 }
 
-/* --- Herramientas: vista previa imprimible (Word a PDF) --- */
-.vista-previa-hoja {
-  background: #fff;
-  color: #111;
-  border-radius: var(--bs-border-radius);
-  padding: 2.5rem;
-  max-height: 480px;
-  overflow-y: auto;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-}
-
-@media print {
-  /* Al imprimir (Word a PDF) solo se ve la hoja, nada del resto de la app. */
-  .app-navbar,
-  .app-footer,
-  .no-imprimir {
-    display: none !important;
-  }
-
-  .vista-previa-hoja {
-    box-shadow: none;
-    max-height: none;
-    overflow: visible;
-    padding: 0;
-  }
-}
-
 /* --- Ventas: tarjetas de pedido (vista mobile, reemplaza a la tabla) --- */
 .pedido-tarjeta {
   transition: border-color 0.15s ease;

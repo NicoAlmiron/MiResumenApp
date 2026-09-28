@@ -1,21 +1,16 @@
 import { useState } from "react";
 import { Container, Form, Button, Alert } from "react-bootstrap";
 import { Link } from "react-router-dom";
-import * as pdfjsLib from "pdfjs-dist";
-import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
-import { Document, Packer, Paragraph, TextRun } from "docx";
 import ZonaCarga from "../../features/herramientas/ZonaCarga";
+import { convertirPdfAWord } from "../../api/herramientas";
 import { descargarArchivo } from "../../utils/descargarArchivo";
 import { nombrePorDefecto, conExtension } from "../../utils/nombreArchivo";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
-
 const MIME_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
-// "Mejor esfuerzo": extrae el TEXTO de cada página del PDF (con pdfjs-dist) y
-// arma un .docx con eso (con la librería `docx`). No conserva imágenes,
-// tablas ni el diseño original — una conversión 1:1 de verdad no es algo que
-// se pueda hacer bien desde el navegador. Se avisa esto en pantalla.
+// Conversión real: el backend usa pdf2docx (conserva tablas y el layout
+// bastante mejor que solo extraer texto, que era lo que hacía la versión
+// vieja 100% en el navegador).
 export default function PdfAWordPage() {
   const [archivo, setArchivo] = useState(null);
   const [nombreSalida, setNombreSalida] = useState("");
@@ -37,26 +32,9 @@ export default function PdfAWordPage() {
     setProcesando(true);
     setError("");
     try {
-      const pdf = await pdfjsLib.getDocument({
-        data: await archivo.arrayBuffer(),
-        // Sin esto, pdfjs pierde texto en PDFs con fuentes estándar no
-        // incrustadas (ej. Helvetica) — ver vite.config.js (viteStaticCopy).
-        standardFontDataUrl: "/pdfjs-standard-fonts/",
-      }).promise;
-      const parrafos = [];
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const pagina = await pdf.getPage(i);
-        const contenido = await pagina.getTextContent();
-        const texto = contenido.items.map((item) => item.str).join(" ");
-        parrafos.push(
-          new Paragraph({ children: [new TextRun(texto || "(página sin texto)")], pageBreakBefore: i > 1 })
-        );
-      }
-
-      const doc = new Document({ sections: [{ children: parrafos }] });
-      const blob = await Packer.toBlob(doc);
+      const docx = await convertirPdfAWord(archivo);
       const nombre = conExtension(nombreSalida || nombrePorDefecto("docx"), "docx");
-      descargarArchivo(blob, nombre, MIME_DOCX);
+      descargarArchivo(docx, nombre, MIME_DOCX);
     } catch {
       setError("No se pudo convertir este PDF. Probá con otro archivo.");
     } finally {
@@ -74,22 +52,10 @@ export default function PdfAWordPage() {
         <i className="bi bi-filetype-docx me-2 text-info" aria-hidden="true" />
         PDF a Word
       </h4>
-
-      <Alert variant="warning" className="d-flex align-items-start gap-2">
-        <i className="bi bi-exclamation-triangle-fill mt-1" aria-hidden="true" />
-        <div>
-          Esta conversión solo extrae el <strong>texto</strong> del PDF — no conserva imágenes, tablas ni el diseño
-          original.
-        </div>
-      </Alert>
+      <p className="text-body-secondary small">Conversión real (pdf2docx) — conserva tablas y el diseño bastante mejor que solo texto.</p>
 
       {!archivo && (
-        <ZonaCarga
-          accept="application/pdf"
-          onArchivos={handleArchivos}
-          texto="Elegir PDF"
-          ayuda="También podés arrastrarlo acá"
-        />
+        <ZonaCarga accept="application/pdf" onArchivos={handleArchivos} texto="Elegir PDF" ayuda="También podés arrastrarlo acá" />
       )}
 
       {error && (
