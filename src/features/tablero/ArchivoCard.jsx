@@ -22,6 +22,16 @@ export default function ArchivoCard({ archivo, dragging, onMoverSiguiente, onEli
     }
   }
 
+  // Abre el visor de Drive en una pestaña nueva. Solo va a mostrar el
+  // documento si quien hace click está logueado en Google con la MISMA
+  // cuenta que lo subió (el archivo queda privado a propósito) — para
+  // cualquier otro caso Drive va a pedir acceso; la descarga de arriba sigue
+  // funcionando siempre, esa sí pasa por nuestro backend.
+  function handleAbrirEnDrive(e) {
+    e.stopPropagation();
+    if (archivo.driveViewLink) window.open(archivo.driveViewLink, "_blank", "noopener,noreferrer");
+  }
+
   return (
     <Card className={`archivo-card position-relative mb-2 ${dragging ? "archivo-card--dragging" : ""}`}>
       <div className="archivo-card__controles">
@@ -48,11 +58,16 @@ export default function ArchivoCard({ archivo, dragging, onMoverSiguiente, onEli
       </div>
 
       <Card.Body className="d-flex align-items-center gap-2 pt-4 pb-2 px-3">
-        <span className="fs-5" aria-hidden="true">
+        <span className="fs-5" aria-hidden="true" role="button" style={{ cursor: "pointer" }} onClick={handleAbrirEnDrive}>
           {icono}
         </span>
-        <div className="flex-grow-1 overflow-hidden">
-          <div className="small fw-semibold text-truncate" title={archivo.nombre}>
+        <div
+          className="flex-grow-1 overflow-hidden"
+          role="button"
+          style={{ cursor: "pointer" }}
+          onClick={handleAbrirEnDrive}
+        >
+          <div className="small fw-semibold text-truncate" title="Abrir en Drive">
             {archivo.nombre}
           </div>
           <div className="text-body-secondary" style={{ fontSize: "0.75rem" }}>

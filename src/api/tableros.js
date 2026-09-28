@@ -4,7 +4,13 @@ import { descargarArchivo as dispararDescarga } from "../utils/descargarArchivo"
 const COLUMNA_BACKEND_A_FRONTEND = { documentos: "documentos", en_edicion: "enEdicion", listo: "listo" };
 
 function aArchivoFrontend(a) {
-  return { id: a.id, nombre: a.nombre, extension: a.extension, fechaActualizado: a.fecha_actualizado.slice(0, 10) };
+  return {
+    id: a.id,
+    nombre: a.nombre,
+    extension: a.extension,
+    fechaActualizado: a.fecha_actualizado.slice(0, 10),
+    driveViewLink: a.drive_view_link,
+  };
 }
 
 // Traduce la respuesta de GET .../tablero (lista plana de archivos con
