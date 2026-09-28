@@ -1,16 +1,12 @@
 import { useState } from "react";
 import { Modal, Form, Button, Row, Col } from "react-bootstrap";
 import { useMaterias, contactosGuardados } from "../../context/MateriasContext";
+import { soportaContactPicker, elegirContacto } from "../../utils/contactPicker";
 
 // Modal genérico que se abre desde CUALQUIER botón "Compartir" de la app
 // (fila de Cátedra/Comisión, Tablero, "Compartir todo" de la cola). Pide el
 // contacto del compañero al que se le manda el resumen — obligatorio nombre
 // y teléfono, precio opcional — y lo autocompleta con contactos ya usados.
-//
-// Sincronizar con Contactos de Google (People API) queda pendiente: hace
-// falta un Client ID de OAuth propio (Google Cloud Console) que no podemos
-// generar acá. El autocompletado local cubre mientras tanto la parte más
-// repetitiva (no volver a tipear el mismo contacto).
 export default function RegistrarContactoModal({ show, onHide, cantidadResumenes = 1, onConfirmar }) {
   const { pedidos } = useMaterias();
   const [contactoNombre, setContactoNombre] = useState("");
@@ -24,6 +20,13 @@ export default function RegistrarContactoModal({ show, onHide, cantidadResumenes
     setContactoTelefono("");
     setPrecio("");
     onHide();
+  }
+
+  async function handleElegirContacto() {
+    const elegido = await elegirContacto().catch(() => null);
+    if (!elegido) return;
+    setContactoNombre(elegido.nombre);
+    setContactoTelefono(elegido.telefono);
   }
 
   function handleSubmit(e) {
@@ -51,6 +54,13 @@ export default function RegistrarContactoModal({ show, onHide, cantidadResumenes
             Vas a compartir {cantidadResumenes} {cantidadResumenes === 1 ? "resumen" : "resúmenes"}. Registrá el
             contacto para que quede en Ventas.
           </p>
+
+          {soportaContactPicker() && (
+            <Button variant="outline-info" size="sm" className="align-self-start" onClick={handleElegirContacto}>
+              <i className="bi bi-person-lines-fill me-1" aria-hidden="true" />
+              Elegir de mis contactos
+            </Button>
+          )}
 
           <Form.Group>
             <Form.Label>Nombre del compañero/a</Form.Label>
@@ -100,11 +110,6 @@ export default function RegistrarContactoModal({ show, onHide, cantidadResumenes
               </Form.Group>
             </Col>
           </Row>
-
-          <div className="login-hint small">
-            <i className="bi bi-google me-1" aria-hidden="true" />
-            Próximamente: elegir directo desde tus Contactos de Google.
-          </div>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="outline-light" onClick={limpiarYCerrar}>

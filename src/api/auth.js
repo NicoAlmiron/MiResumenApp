@@ -4,7 +4,7 @@ import { apiFetch } from "./client";
 // esto ya coincide con lo que el resto de la app espera de un usuario
 // público (ver AuthContext.jsx `aPublico`), salvo el nombre del campo.
 function aUsuarioPublico(u) {
-  return { id: u.id, nombreUsuario: u.nombre_usuario, rol: u.rol, googleId: u.google_id, driveConectado: u.drive_conectado };
+  return { id: u.id, nombreUsuario: u.nombre_usuario, rol: u.rol, googleConectado: u.google_conectado };
 }
 
 export async function login(nombreUsuario, password) {
@@ -58,22 +58,13 @@ export async function eliminarUsuario(id) {
   await apiFetch(`/usuarios/${id}`, { method: "DELETE" });
 }
 
-export async function vincularGoogle(idToken) {
-  const datos = await apiFetch("/auth/me/google", { method: "PUT", body: { id_token: idToken } });
+// Conexión única: identidad + Drive de una (ver ConfiguracionPage.jsx).
+export async function conectarGoogle(code) {
+  const datos = await apiFetch("/auth/me/google", { method: "POST", body: { code } });
   return aUsuarioPublico(datos);
 }
 
-export async function desvincularGoogle() {
+export async function desconectarGoogle() {
   const datos = await apiFetch("/auth/me/google", { method: "DELETE" });
-  return aUsuarioPublico(datos);
-}
-
-export async function conectarDrive(code) {
-  const datos = await apiFetch("/auth/me/drive", { method: "POST", body: { code } });
-  return aUsuarioPublico(datos);
-}
-
-export async function desconectarDrive() {
-  const datos = await apiFetch("/auth/me/drive", { method: "DELETE" });
   return aUsuarioPublico(datos);
 }
