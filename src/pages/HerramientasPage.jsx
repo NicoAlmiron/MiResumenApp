@@ -11,6 +11,12 @@ const HERRAMIENTAS = [
     descripcion: "Combiná varios PDF en uno solo, en el orden que elijas.",
   },
   {
+    ruta: "dividir-pdf",
+    icono: "bi-scissors",
+    titulo: "Dividir PDF",
+    descripcion: "Partí un PDF largo en varios archivos más chicos.",
+  },
+  {
     ruta: "pdf-a-word",
     icono: "bi-filetype-docx",
     titulo: "PDF a Word",

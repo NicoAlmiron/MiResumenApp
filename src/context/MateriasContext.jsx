@@ -4,6 +4,7 @@ import { useAuth } from "./AuthContext";
 import * as materiasApi from "../api/materias";
 import * as tablerosApi from "../api/tableros";
 import * as pedidosApi from "../api/pedidos";
+import * as clientesApi from "../api/clientes";
 
 const MateriasContext = createContext(null);
 
@@ -107,6 +108,8 @@ export function MateriasProvider({ children }) {
   const [colaEnvio, setColaEnvio] = useState([]);
   const [pedidos, setPedidos] = useState([]);
   const [cargandoPedidos, setCargandoPedidos] = useState(true);
+  const [clientes, setClientes] = useState([]);
+  const [cargandoClientes, setCargandoClientes] = useState(true);
 
   useEffect(() => {
     if (cargandoSesion) return;
@@ -118,6 +121,8 @@ export function MateriasProvider({ children }) {
       setCargando(false);
       setPedidos([]);
       setCargandoPedidos(false);
+      setClientes([]);
+      setCargandoClientes(false);
       return;
     }
     let cancelado = false;
@@ -146,6 +151,19 @@ export function MateriasProvider({ children }) {
       })
       .finally(() => {
         if (!cancelado) setCargandoPedidos(false);
+      });
+
+    setCargandoClientes(true);
+    clientesApi
+      .listarClientes()
+      .then((datos) => {
+        if (!cancelado) setClientes(datos);
+      })
+      .catch(() => {
+        if (!cancelado) setClientes([]);
+      })
+      .finally(() => {
+        if (!cancelado) setCargandoClientes(false);
       });
 
     return () => {
@@ -233,22 +251,34 @@ export function MateriasProvider({ children }) {
   );
 
   // Comparte una o varias hojas de una sola vez, agrupadas en UN pedido (un
-  // contacto + una fecha + la lista de resúmenes mandados juntos). El backend
+  // cliente + una fecha + la lista de resúmenes mandados juntos). El backend
   // registra el pedido Y suma +1 a "veces compartido" de cada tablero
   // incluido en una sola operación — acá solo se refrescan esas hojas después.
+  // `contacto` es { clienteId } (cliente ya registrado) o
+  // { clienteNuevo: {nombre, telefono} } (se crea o reutiliza uno existente
+  // con ese teléfono) — más `precio` opcional, ver RegistrarContactoModal.jsx.
   const registrarPedido = useCallback(
-    async (refs, { contactoNombre, contactoTelefono, precio }) => {
+    async (refs, { clienteId, clienteNuevo, precio }) => {
       const refsValidos = refs.filter((ref) => getHoja(materias, ref)?.tableroId != null);
-      if (refsValidos.length === 0) return;
+      if (refsValidos.length === 0) return null;
 
       const nuevoPedido = await pedidosApi.crearPedido({
-        contactoNombre,
-        contactoTelefono,
+        clienteId,
+        clienteNuevo,
         precio: precio || null,
         tableroIds: refsValidos.map((ref) => getHoja(materias, ref).tableroId),
       });
       setPedidos((prev) => [nuevoPedido, ...prev]);
+      // Si se registró un cliente nuevo, refrescar la lista para que aparezca
+      // como "cliente existente" la próxima vez que se abra el modal.
+      if (clienteNuevo) {
+        clientesApi
+          .listarClientes()
+          .then(setClientes)
+          .catch(() => {});
+      }
       await Promise.all(refsValidos.map((ref) => refrescarTablero(ref)));
+      return nuevoPedido;
     },
     [materias, refrescarTablero]
   );
@@ -352,8 +382,9 @@ export function MateriasProvider({ children }) {
   const vaciarColaEnvio = useCallback(() => setColaEnvio([]), []);
   const compartirCola = useCallback(
     async (contacto) => {
-      await registrarPedido(colaEnvio, contacto);
+      const pedido = await registrarPedido(colaEnvio, contacto);
       setColaEnvio([]);
+      return pedido;
     },
     [colaEnvio, registrarPedido]
   );
@@ -377,6 +408,8 @@ export function MateriasProvider({ children }) {
     compartirCola,
     pedidos,
     cargandoPedidos,
+    clientes,
+    cargandoClientes,
     editarMateriaCompleta,
     editarCatedraCompleta,
     editarComision,

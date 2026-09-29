@@ -43,6 +43,7 @@ export default function CatedraRow({ materiaId, catedra }) {
             refHoja={ref}
             estaListo={estaListo}
             vecesCompartido={catedra.vecesCompartido}
+            archivos={catedra.tablero.listo}
             onSeguirPreparando={() => navigate(`/materias/${materiaId}/catedras/${catedra.id}/tablero`)}
           />
         </div>

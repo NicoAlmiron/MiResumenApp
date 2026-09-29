@@ -18,6 +18,7 @@ function aResumenFrontend(r) {
 function aPedidoFrontend(p) {
   return {
     id: p.id,
+    clienteId: p.cliente_id,
     contactoNombre: p.contacto_nombre,
     contactoTelefono: p.contacto_telefono,
     precio: p.precio,
@@ -31,10 +32,18 @@ export async function listarPedidos() {
   return datos.map(aPedidoFrontend);
 }
 
-export async function crearPedido({ contactoNombre, contactoTelefono, precio, tableroIds }) {
+// `clienteId` (cliente ya registrado) o `clienteNuevo: {nombre, telefono}`
+// (se crea o reutiliza uno existente con ese teléfono) — exactamente uno de
+// los dos, ver RegistrarContactoModal.jsx.
+export async function crearPedido({ clienteId, clienteNuevo, precio, tableroIds }) {
   const datos = await apiFetch("/pedidos", {
     method: "POST",
-    body: { contacto_nombre: contactoNombre, contacto_telefono: contactoTelefono, precio, tablero_ids: tableroIds },
+    body: {
+      cliente_id: clienteId ?? null,
+      cliente_nuevo: clienteNuevo ? { nombre: clienteNuevo.nombre, telefono: clienteNuevo.telefono } : null,
+      precio,
+      tablero_ids: tableroIds,
+    },
   });
   return aPedidoFrontend(datos);
 }

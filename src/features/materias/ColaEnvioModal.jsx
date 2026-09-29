@@ -12,9 +12,12 @@ export default function ColaEnvioModal({ show, onHide }) {
   const { materias, colaEnvio, quitarDeColaEnvio, compartirCola } = useMaterias();
   const [showContacto, setShowContacto] = useState(false);
 
-  function handleConfirmarContacto(contacto) {
-    compartirCola(contacto);
+  const archivos = colaEnvio.flatMap((ref) => getHoja(materias, ref)?.tablero.listo ?? []);
+
+  async function handleConfirmarContacto(contacto) {
+    const pedido = await compartirCola(contacto);
     onHide();
+    return pedido;
   }
 
   return (
@@ -80,7 +83,7 @@ export default function ColaEnvioModal({ show, onHide }) {
       <RegistrarContactoModal
         show={showContacto}
         onHide={() => setShowContacto(false)}
-        cantidadResumenes={colaEnvio.length}
+        archivos={archivos}
         onConfirmar={handleConfirmarContacto}
       />
     </>

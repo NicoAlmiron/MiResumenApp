@@ -10,7 +10,7 @@ import RegistrarContactoModal from "../ventas/RegistrarContactoModal";
 //   deshabilitados y se habilitan solo cuando ya hay un archivo en "Listo".
 // `refHoja` identifica la hoja en el Context (null en el caso especial de una
 // Materia sin ninguna sección todavía, donde estos botones son solo visuales).
-export default function SeccionButtons({ refHoja, estaListo, vecesCompartido, onSeguirPreparando }) {
+export default function SeccionButtons({ refHoja, estaListo, vecesCompartido, archivos, onSeguirPreparando }) {
   const { registrarPedido, colaEnvio, agregarAColaEnvio, quitarDeColaEnvio } = useMaterias();
   const [showContacto, setShowContacto] = useState(false);
   const enCola = refHoja != null && colaEnvio.some((r) => refHojaKey(r) === refHojaKey(refHoja));
@@ -52,7 +52,7 @@ export default function SeccionButtons({ refHoja, estaListo, vecesCompartido, on
       <RegistrarContactoModal
         show={showContacto}
         onHide={() => setShowContacto(false)}
-        cantidadResumenes={1}
+        archivos={archivos}
         onConfirmar={(contacto) => registrarPedido([refHoja], contacto)}
       />
     </div>

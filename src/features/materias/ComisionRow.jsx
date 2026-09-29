@@ -17,6 +17,7 @@ export default function ComisionRow({ materiaId, catedraId, comision }) {
         refHoja={ref}
         estaListo={estaListo}
         vecesCompartido={comision.vecesCompartido}
+        archivos={comision.tablero.listo}
         onSeguirPreparando={() =>
           navigate(`/materias/${materiaId}/catedras/${catedraId}/comisiones/${comision.id}/tablero`)
         }

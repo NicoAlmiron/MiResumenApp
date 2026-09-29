@@ -56,8 +56,13 @@ export async function eliminarArchivo(archivoId) {
 }
 
 // Trae el archivo real desde el backend (que a su vez lo pide a Drive con el
-// token de quien lo subió) y dispara la descarga en el navegador.
-export async function descargarArchivoDelTablero(archivoId, nombre) {
+// token de quien lo subió) — base común para descargarlo al disco o, por
+// ejemplo, adjuntarlo a un share nativo (ver utils/whatsappShare.js).
+export async function obtenerBlobDeArchivo(archivoId) {
   const respuesta = await apiFetch(`/archivos/${archivoId}/descargar`, { raw: true });
-  dispararDescarga(await respuesta.blob(), nombre);
+  return respuesta.blob();
+}
+
+export async function descargarArchivoDelTablero(archivoId, nombre) {
+  dispararDescarga(await obtenerBlobDeArchivo(archivoId), nombre);
 }

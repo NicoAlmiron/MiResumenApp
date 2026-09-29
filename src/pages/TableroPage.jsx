@@ -109,7 +109,7 @@ export default function TableroPage() {
       <RegistrarContactoModal
         show={showContacto}
         onHide={() => setShowContacto(false)}
-        cantidadResumenes={1}
+        archivos={hoja.tablero.listo}
         onConfirmar={(contacto) => registrarPedido([refHoja], contacto)}
       />
     </Container>
