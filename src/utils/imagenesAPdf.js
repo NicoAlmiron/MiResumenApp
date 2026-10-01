@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { reconocerTextoDeLote } from "./ocrTexto";
+import { obtenerCv } from "./opencv";
 
 // A4 en puntos (72 por pulgada) — tamaño de página para los PDF armados a
 // partir de texto (OCR), ya que ahí no hay una imagen que les marque el
@@ -9,19 +10,29 @@ const MARGEN = 50;
 const TAMANO_FUENTE = 11;
 const INTERLINEADO = 14;
 
-// Sube el contraste y lleva a blanco y negro — look "escaneado" clásico
-// (texto nítido, fondo claro). No endereza perspectiva ni recorta bordes,
-// eso requeriría detección de bordes/visión por computadora (descartado,
-// ver plan: demasiado pesado para lo que hace falta acá).
-const CONTRASTE = 1.6;
-const BRILLO = 25;
-
-function aplicarFiltroDocumento(datos) {
-  const { data } = datos;
-  for (let i = 0; i < data.length; i += 4) {
-    const gris = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-    const valor = Math.max(0, Math.min(255, (gris - 128) * CONTRASTE + 128 + BRILLO));
-    data[i] = data[i + 1] = data[i + 2] = valor;
+// Blanco y negro tipo "escáner" con umbral ADAPTATIVO (no un contraste
+// global fijo): cada zona de la imagen se compara contra el promedio de su
+// propio entorno, no contra un valor fijo para toda la foto — así no se
+// "quema" a blanco el texto en fotos con luz despareja o algo sobreexpuestas
+// (lo que pasaba antes con un simple ajuste de contraste/brillo global).
+// blockSize se escala con la resolución (fotos de celular son enormes, un
+// tamaño de ventana fijo en píxeles no tendría sentido en todas).
+async function aplicarFiltroDocumento(canvas) {
+  const cv = await obtenerCv();
+  const src = cv.imread(canvas);
+  const gris = new cv.Mat();
+  const resultado = new cv.Mat();
+  try {
+    cv.cvtColor(src, gris, cv.COLOR_RGBA2GRAY);
+    let blockSize = Math.round(Math.min(canvas.width, canvas.height) * 0.025);
+    if (blockSize % 2 === 0) blockSize += 1;
+    blockSize = Math.max(15, blockSize);
+    cv.adaptiveThreshold(gris, resultado, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, blockSize, 15);
+    cv.imshow(canvas, resultado);
+  } finally {
+    src.delete();
+    gris.delete();
+    resultado.delete();
   }
 }
 
@@ -40,9 +51,7 @@ export async function procesarImagen(file, aplicarFiltro) {
   bitmap.close();
 
   if (aplicarFiltro) {
-    const datos = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    aplicarFiltroDocumento(datos);
-    ctx.putImageData(datos, 0, 0);
+    await aplicarFiltroDocumento(canvas);
   }
 
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));

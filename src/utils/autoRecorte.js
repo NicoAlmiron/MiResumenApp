@@ -1,50 +1,44 @@
-// @techstark/opencv-js pesa varios MB (el WASM de OpenCV) — import() dinámico
-// a propósito, para que ese peso se baje recién la primera vez que hace
-// falta recortar una foto (checkbox activado + al menos una imagen), no
-// apenas se entra a la página. Mismo espíritu que el modelo de español de
-// Tesseract.js (ver ocrTexto.js), que también se baja solo al usarse.
-//
-// opencv-js expone distintos patrones de inicialización según cómo termine
-// de cargar el WASM — este es el patrón recomendado por la librería (ver su
-// README), cacheado para no repetir la espera en cada llamada.
-let cvListo = null;
-function obtenerCv() {
-  if (!cvListo) {
-    cvListo = (async () => {
-      const { default: cvModule } = await import("@techstark/opencv-js");
-      if (cvModule instanceof Promise) return await cvModule;
-      if (cvModule.Mat) return cvModule;
-      await new Promise((resolve) => {
-        cvModule.onRuntimeInitialized = resolve;
-      });
-      return cvModule;
-    })();
-  }
-  return cvListo;
-}
+import { obtenerCv } from "./opencv";
 
 // Reduce la imagen a esto (lado más largo) solo para la etapa de detección
 // de bordes — las fotos de celular son enormes y correr Canny/contornos a
 // resolución completa sería lento. El recorte final sí usa la imagen
 // original completa (los puntos detectados se reescalan).
 const MAX_LADO_DETECCION = 1200;
-const AREA_MINIMA_FRACCION = 0.15;
+const AREA_MINIMA_FRACCION = 0.1;
 // Con umbrales de Canny más permisivos, a veces "se detecta" el borde del
 // encuadre de la foto entera como si fuera la hoja (falso positivo clásico:
 // JPEG/antialiasing deja un borde parejo justo en el límite de la imagen).
 // Una hoja real casi nunca toca los 4 bordes del encuadre sin margen, así
 // que se descarta cualquier candidato que ocupe casi toda la imagen.
 const AREA_MAXIMA_FRACCION = 0.95;
-// Fotos reales (fondo con textura, luz pareja, sombras) no siempre dan un
+// Fotos reales (fondo con textura, luz despareja, sombras) no siempre dan un
 // buen resultado con un solo umbral de Canny ni con un solo epsilon de
 // aproximación de polígono — se prueban varias combinaciones antes de
-// rendirse, más tolerante que un único intento "ideal".
+// rendirse, más tolerante que un único intento "ideal". Los umbrales fijos
+// cubren un rango amplio de sensibilidad; a esos se les suma un par
+// calculado automáticamente por imagen (ver umbralesAutomaticos) porque la
+// exposición de una foto real varía mucho de una a otra.
 const PARES_CANNY = [
   [50, 150],
   [30, 90],
   [75, 200],
+  [20, 60],
 ];
-const EPSILONS_APROX = [0.01, 0.02, 0.03, 0.05];
+const EPSILONS_APROX = [0.01, 0.02, 0.03, 0.05, 0.08];
+
+// Umbral de Otsu (se calcula solo, según el histograma de la imagen) para
+// derivar un par de Canny ajustado a la exposición real de esta foto en
+// particular, en vez de depender solo de los valores fijos de arriba.
+function umbralesAutomaticos(cv, grisDifuminado) {
+  const binaria = new cv.Mat();
+  try {
+    const otsu = cv.threshold(grisDifuminado, binaria, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU);
+    return [otsu * 0.5, otsu];
+  } finally {
+    binaria.delete();
+  }
+}
 
 function ordenarPuntos([a, b, c, d]) {
   const pts = [a, b, c, d];
@@ -87,7 +81,8 @@ function buscarCuadrilatero(cv, mat) {
     cv.cvtColor(mat, gris, cv.COLOR_RGBA2GRAY);
     cv.GaussianBlur(gris, difuminado, new cv.Size(5, 5), 0);
 
-    for (const [t1, t2] of PARES_CANNY) {
+    const pares = [...PARES_CANNY, umbralesAutomaticos(cv, difuminado)];
+    for (const [t1, t2] of pares) {
       const bordes = new cv.Mat();
       const dilatado = new cv.Mat();
       const contornos = new cv.MatVector();
