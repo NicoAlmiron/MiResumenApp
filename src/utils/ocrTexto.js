@@ -1,8 +1,8 @@
-import { createWorker } from "tesseract.js";
-
-// OCR 100% en el navegador (Tesseract.js, WASM + Web Worker) — el modelo de
-// español se descarga solo la primera vez que se usa (tesseract.js lo
-// cachea en el navegador después), no infla el bundle de la app.
+// tesseract.js pesa bastante (WASM + glue) — import() dinámico a propósito,
+// igual que @techstark/opencv-js (ver opencv.js), para que ese peso se baje
+// recién la primera vez que hace falta (Word + OCR activado), no apenas se
+// entra a la página — antes se importaba estático y se cargaba siempre,
+// aunque no se usara.
 //
 // Un solo worker para todo el lote de `blobs` (ya preprocesados por quien
 // llama — ver construirPdfConOcr en imagenesAPdf.js, que aplica el mismo
@@ -12,6 +12,7 @@ import { createWorker } from "tesseract.js";
 // `onProgreso({ indice, total, fraccion })` se llama durante el
 // reconocimiento de cada imagen, para mostrar avance en la UI.
 export async function reconocerTextoDeLote(blobs, onProgreso) {
+  const { createWorker } = await import("tesseract.js");
   let indiceActual = 0;
   const worker = await createWorker("spa", undefined, {
     logger: (m) => {

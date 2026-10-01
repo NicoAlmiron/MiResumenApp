@@ -128,8 +128,12 @@ export default function ImagenesAPdfPage() {
       descargarArchivo(docx, nombre, MIME_DOCX);
     } catch (err) {
       console.error("Error al generar el archivo:", err);
-      const detalle = err instanceof Error ? err.message : String(err);
-      setError(`Algo falló al generar el archivo: ${detalle}`);
+      // El mensaje solo no siempre alcanza para encontrar la causa (ej.
+      // errores de Promise/WASM) — se muestra el stack completo si está
+      // disponible, para poder ubicar la línea exacta sin acceso al
+      // dispositivo donde pasó.
+      const detalle = err instanceof Error ? err.stack || err.message : String(err);
+      setError(`Algo falló al generar el archivo:\n${detalle}`);
     } finally {
       setProcesando(false);
       setProgresoOcr("");
@@ -150,7 +154,11 @@ export default function ImagenesAPdfPage() {
         Subí varias imágenes (o sacá fotos), ordenalas, y armá un PDF o Word de varias páginas.
       </p>
 
-      {error && <Alert variant="danger">{error}</Alert>}
+      {error && (
+        <Alert variant="danger" style={{ whiteSpace: "pre-wrap", fontSize: "0.85rem" }}>
+          {error}
+        </Alert>
+      )}
 
       <div className="d-flex flex-wrap gap-2 mb-3">
         <ZonaCarga
