@@ -75,7 +75,15 @@ export async function procesarImagen(file, aplicarFiltro) {
   cerrarBitmap(bitmap);
 
   if (aplicarFiltro) {
-    await aplicarFiltroDocumento(canvas);
+    try {
+      await aplicarFiltroDocumento(canvas);
+    } catch (err) {
+      // OpenCV es un paquete pesado (~15MB) que se baja recién acá — en una
+      // conexión real (celular) puede fallar al cargar. Mismo criterio que
+      // el recorte automático: si no se puede, se sigue con la imagen tal
+      // cual en vez de cortar la generación entera por esto.
+      console.error("No se pudo aplicar el filtro, se usa la imagen sin filtrar:", err);
+    }
   }
 
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
