@@ -220,8 +220,8 @@ body {
 }
 
 .lista-ordenable__miniatura {
-  width: 2rem;
-  height: 2rem;
+  width: 4.5rem;
+  height: 4.5rem;
   object-fit: cover;
   border-radius: var(--bs-border-radius-sm);
   flex-shrink: 0;

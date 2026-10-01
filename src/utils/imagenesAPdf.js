@@ -90,16 +90,29 @@ export async function procesarImagen(file, aplicarFiltro) {
   return { blob, width: canvas.width, height: canvas.height };
 }
 
+// Cada página queda en A4 (igual que las de texto, ver TAMANO_PAGINA) en vez
+// del tamaño exacto de la foto, lista para imprimir — la imagen se encaja
+// adentro conservando su proporción (como un visor de PDF normal), centrada,
+// no estirada.
 async function agregarPaginaDeImagen(pdf, blob, width, height) {
   const bytesImagen = await blob.arrayBuffer();
   const imagen = await pdf.embedJpg(bytesImagen);
-  const pagina = pdf.addPage([width, height]);
-  pagina.drawImage(imagen, { x: 0, y: 0, width, height });
+  const [anchoPagina, altoPagina] = TAMANO_PAGINA;
+  const pagina = pdf.addPage(TAMANO_PAGINA);
+  const escala = Math.min(anchoPagina / width, altoPagina / height);
+  const anchoFinal = width * escala;
+  const altoFinal = height * escala;
+  pagina.drawImage(imagen, {
+    x: (anchoPagina - anchoFinal) / 2,
+    y: (altoPagina - altoFinal) / 2,
+    width: anchoFinal,
+    height: altoFinal,
+  });
 }
 
-// Arma un PDF de una página por imagen, en el orden de `imagenes`, cada
-// página del tamaño exacto de su imagen — mismo patrón PDFDocument/addPage
-// que ya usan UnirPdfsPage/DividirPdfPage.
+// Arma un PDF de una página A4 por imagen, en el orden de `imagenes`, lista
+// para imprimir — mismo patrón PDFDocument/addPage que ya usan
+// UnirPdfsPage/DividirPdfPage.
 export async function construirPdfDeImagenes(imagenes, aplicarFiltro) {
   const pdf = await PDFDocument.create();
   for (const item of imagenes) {
