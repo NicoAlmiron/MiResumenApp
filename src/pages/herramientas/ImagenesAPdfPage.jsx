@@ -3,7 +3,7 @@ import { Container, Form, Button, ButtonGroup, Alert } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import ZonaCarga from "../../features/herramientas/ZonaCarga";
 import ListaArchivosOrdenable from "../../features/herramientas/ListaArchivosOrdenable";
-import { construirPdfDeImagenes } from "../../utils/imagenesAPdf";
+import { construirPdfDeImagenes, construirPdfConOcr } from "../../utils/imagenesAPdf";
 import { convertirPdfAWord } from "../../api/herramientas";
 import { descargarArchivo } from "../../utils/descargarArchivo";
 import { nombrePorDefecto, conExtension } from "../../utils/nombreArchivo";
@@ -19,6 +19,8 @@ export default function ImagenesAPdfPage() {
   const [imagenes, setImagenes] = useState([]);
   const [filtroDocumento, setFiltroDocumento] = useState(false);
   const [formato, setFormato] = useState("pdf"); // "pdf" | "word"
+  const [ocr, setOcr] = useState(false);
+  const [progresoOcr, setProgresoOcr] = useState("");
   const [nombreSalida, setNombreSalida] = useState("");
   const [procesando, setProcesando] = useState(false);
   const [error, setError] = useState("");
@@ -65,8 +67,14 @@ export default function ImagenesAPdfPage() {
     if (imagenes.length === 0) return;
     setProcesando(true);
     setError("");
+    setProgresoOcr("");
     try {
-      const pdfBytes = await construirPdfDeImagenes(imagenes, filtroDocumento);
+      const usarOcr = formato === "word" && ocr;
+      const pdfBytes = usarOcr
+        ? await construirPdfConOcr(imagenes, ({ indice, total, fraccion }) =>
+            setProgresoOcr(`Reconociendo texto... imagen ${indice + 1} de ${total} (${Math.round(fraccion * 100)}%)`)
+          )
+        : await construirPdfDeImagenes(imagenes, filtroDocumento);
 
       if (formato === "pdf") {
         const nombre = conExtension(nombreSalida || nombrePorDefecto("pdf"), "pdf");
@@ -74,6 +82,7 @@ export default function ImagenesAPdfPage() {
         return;
       }
 
+      setProgresoOcr("");
       const pdfFile = new File([pdfBytes], "imagenes.pdf", { type: "application/pdf" });
       const docx = await convertirPdfAWord(pdfFile);
       const nombre = conExtension(nombreSalida || nombrePorDefecto("docx"), "docx");
@@ -82,6 +91,7 @@ export default function ImagenesAPdfPage() {
       setError("Algo falló al generar el archivo. Probá de nuevo.");
     } finally {
       setProcesando(false);
+      setProgresoOcr("");
     }
   }
 
@@ -138,6 +148,22 @@ export default function ImagenesAPdfPage() {
             </Button>
           </ButtonGroup>
 
+          {formato === "word" && (
+            <Form.Group className="mt-3">
+              <Form.Check
+                type="checkbox"
+                id="ocr-texto"
+                label="Reconocer texto (OCR) para un Word editable"
+                checked={ocr}
+                onChange={(e) => setOcr(e.target.checked)}
+              />
+              <Form.Text>
+                Da buenos resultados en apuntes tipeados/impresos; con letra manuscrita el resultado puede ser pobre.
+                Agrega varios segundos de procesamiento por imagen.
+              </Form.Text>
+            </Form.Group>
+          )}
+
           <Form.Group className="mt-3">
             <Form.Label>Nombre del archivo final</Form.Label>
             <Form.Control
@@ -149,7 +175,7 @@ export default function ImagenesAPdfPage() {
 
           <Button variant="success" className="fw-semibold mt-3" disabled={procesando} onClick={convertirYDescargar}>
             <i className="bi bi-download me-1" aria-hidden="true" />
-            {procesando ? "Generando..." : "Convertir y descargar"}
+            {progresoOcr || (procesando ? "Generando..." : "Convertir y descargar")}
           </Button>
         </>
       )}
