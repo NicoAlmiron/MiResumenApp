@@ -4,6 +4,12 @@
 // página. Mismo espíritu que el modelo de español de Tesseract.js (ver
 // ocrTexto.js), que también se baja solo al usarse. Compartido entre
 // autoRecorte.js e imagenesAPdf.js para no duplicar la inicialización.
+//
+// Nota: se probó cargarlo como script clásico desde jsdelivr (CDN) en vez
+// de empaquetado — esa variante se quedaba colgada esperando
+// onRuntimeInitialized (nunca resuelve, ni siquiera en una conexión local
+// rápida), así que se volvió a este import() dinámico, que sí funciona de
+// forma confiable en las pruebas.
 const INTENTOS = 3;
 const ESPERA_ENTRE_INTENTOS_MS = 1500;
 
