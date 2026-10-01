@@ -28,7 +28,23 @@ function obtenerCv() {
 // resolución completa sería lento. El recorte final sí usa la imagen
 // original completa (los puntos detectados se reescalan).
 const MAX_LADO_DETECCION = 1200;
-const AREA_MINIMA_FRACCION = 0.2;
+const AREA_MINIMA_FRACCION = 0.15;
+// Con umbrales de Canny más permisivos, a veces "se detecta" el borde del
+// encuadre de la foto entera como si fuera la hoja (falso positivo clásico:
+// JPEG/antialiasing deja un borde parejo justo en el límite de la imagen).
+// Una hoja real casi nunca toca los 4 bordes del encuadre sin margen, así
+// que se descarta cualquier candidato que ocupe casi toda la imagen.
+const AREA_MAXIMA_FRACCION = 0.95;
+// Fotos reales (fondo con textura, luz pareja, sombras) no siempre dan un
+// buen resultado con un solo umbral de Canny ni con un solo epsilon de
+// aproximación de polígono — se prueban varias combinaciones antes de
+// rendirse, más tolerante que un único intento "ideal".
+const PARES_CANNY = [
+  [50, 150],
+  [30, 90],
+  [75, 200],
+];
+const EPSILONS_APROX = [0.01, 0.02, 0.03, 0.05];
 
 function ordenarPuntos([a, b, c, d]) {
   const pts = [a, b, c, d];
@@ -48,51 +64,100 @@ function distancia(p, q) {
 // Busca el cuadrilátero más grande (con área mínima) en `mat` — recorrido
 // estándar de "escáner de documentos": bordes (Canny) -> contornos ->
 // aproximar cada uno a un polígono -> quedarse con el mejor de 4 vértices.
+// Prueba varios umbrales de Canny y varios epsilon de aproximación (fotos
+// reales rara vez dan un contorno de 4 vértices "limpio" al primer intento).
+// Si ningún intento da 4 vértices pero sí hay un contorno grande evidente,
+// cae a su rectángulo rotado de área mínima (corrige rotación simple, no
+// distorsión de perspectiva fina, pero es mejor que no recortar nada).
 // Devuelve un cv.Mat (4x1, CV_32SC2) que el que llama debe liberar, o null.
 function buscarCuadrilatero(cv, mat) {
   const gris = new cv.Mat();
   const difuminado = new cv.Mat();
-  const bordes = new cv.Mat();
-  const dilatado = new cv.Mat();
   const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3, 3));
-  const contornos = new cv.MatVector();
-  const jerarquia = new cv.Mat();
-  let mejor = null;
-  let mejorArea = 0;
+  const areaTotal = mat.cols * mat.rows;
+  const areaMinima = areaTotal * AREA_MINIMA_FRACCION;
+  const areaMaxima = areaTotal * AREA_MAXIMA_FRACCION;
+
+  let mejorCuadrilatero = null;
+  let mejorAreaCuadrilatero = 0;
+  let mejorContornoGrande = null;
+  let mejorAreaGrande = 0;
 
   try {
     cv.cvtColor(mat, gris, cv.COLOR_RGBA2GRAY);
     cv.GaussianBlur(gris, difuminado, new cv.Size(5, 5), 0);
-    cv.Canny(difuminado, bordes, 50, 150);
-    cv.dilate(bordes, dilatado, kernel);
-    cv.findContours(dilatado, contornos, jerarquia, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
 
-    const areaMinima = mat.cols * mat.rows * AREA_MINIMA_FRACCION;
-    for (let i = 0; i < contornos.size(); i++) {
-      const contorno = contornos.get(i);
-      const perimetro = cv.arcLength(contorno, true);
-      const aprox = new cv.Mat();
-      cv.approxPolyDP(contorno, aprox, 0.02 * perimetro, true);
-      const area = cv.contourArea(aprox);
-      const sirve = aprox.rows === 4 && area > areaMinima && area > mejorArea && cv.isContourConvex(aprox);
-      if (sirve) {
-        if (mejor) mejor.delete();
-        mejor = aprox;
-        mejorArea = area;
-      } else {
-        aprox.delete();
+    for (const [t1, t2] of PARES_CANNY) {
+      const bordes = new cv.Mat();
+      const dilatado = new cv.Mat();
+      const contornos = new cv.MatVector();
+      const jerarquia = new cv.Mat();
+      try {
+        cv.Canny(difuminado, bordes, t1, t2);
+        cv.dilate(bordes, dilatado, kernel);
+        // RETR_EXTERNAL: solo los contornos de afuera (el borde de la hoja),
+        // ignora los de adentro (texto, líneas) — no sirven para esto.
+        cv.findContours(dilatado, contornos, jerarquia, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+        for (let i = 0; i < contornos.size(); i++) {
+          const contorno = contornos.get(i);
+          const area = cv.contourArea(contorno);
+          const tamanoRazonable = area > areaMinima && area < areaMaxima;
+
+          if (tamanoRazonable && area > mejorAreaGrande) {
+            mejorAreaGrande = area;
+            if (mejorContornoGrande) mejorContornoGrande.delete();
+            mejorContornoGrande = contorno.clone();
+          }
+
+          if (tamanoRazonable && area > mejorAreaCuadrilatero) {
+            const perimetro = cv.arcLength(contorno, true);
+            for (const eps of EPSILONS_APROX) {
+              const aprox = new cv.Mat();
+              cv.approxPolyDP(contorno, aprox, eps * perimetro, true);
+              const areaAprox = cv.contourArea(aprox);
+              const sirve =
+                aprox.rows === 4 &&
+                areaAprox > areaMinima &&
+                areaAprox < areaMaxima &&
+                areaAprox > mejorAreaCuadrilatero &&
+                cv.isContourConvex(aprox);
+              if (sirve) {
+                if (mejorCuadrilatero) mejorCuadrilatero.delete();
+                mejorCuadrilatero = aprox;
+                mejorAreaCuadrilatero = areaAprox;
+                break;
+              }
+              aprox.delete();
+            }
+          }
+          contorno.delete();
+        }
+      } finally {
+        bordes.delete();
+        dilatado.delete();
+        contornos.delete();
+        jerarquia.delete();
       }
-      contorno.delete();
     }
-    return mejor;
+
+    if (mejorCuadrilatero) {
+      if (mejorContornoGrande) mejorContornoGrande.delete();
+      return mejorCuadrilatero;
+    }
+    if (mejorContornoGrande) {
+      const rect = cv.minAreaRect(mejorContornoGrande);
+      mejorContornoGrande.delete();
+      const vertices = cv.RotatedRect.points(rect);
+      const datos = [];
+      for (const v of vertices) datos.push(v.x, v.y);
+      return cv.matFromArray(4, 1, cv.CV_32SC2, datos);
+    }
+    return null;
   } finally {
     gris.delete();
     difuminado.delete();
-    bordes.delete();
-    dilatado.delete();
     kernel.delete();
-    contornos.delete();
-    jerarquia.delete();
   }
 }
 
