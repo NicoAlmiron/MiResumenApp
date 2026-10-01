@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import ZonaCarga from "../../features/herramientas/ZonaCarga";
 import ListaArchivosOrdenable from "../../features/herramientas/ListaArchivosOrdenable";
 import { construirPdfDeImagenes, construirPdfConOcr } from "../../utils/imagenesAPdf";
+import { detectarYRecortarPagina } from "../../utils/autoRecorte";
 import { convertirPdfAWord } from "../../api/herramientas";
 import { descargarArchivo } from "../../utils/descargarArchivo";
 import { nombrePorDefecto, conExtension } from "../../utils/nombreArchivo";
@@ -17,6 +18,7 @@ const MIME_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingm
 // vez de sumar una librería de generación de .docx en el cliente.
 export default function ImagenesAPdfPage() {
   const [imagenes, setImagenes] = useState([]);
+  const [autoRecorte, setAutoRecorte] = useState(true);
   const [filtroDocumento, setFiltroDocumento] = useState(false);
   const [formato, setFormato] = useState("pdf"); // "pdf" | "word"
   const [ocr, setOcr] = useState(false);
@@ -38,17 +40,53 @@ export default function ImagenesAPdfPage() {
     return () => imagenesRef.current.forEach((item) => URL.revokeObjectURL(item.miniatura));
   }, []);
 
-  const handleArchivos = useCallback((fileList) => {
-    setError("");
-    const nuevas = Array.from(fileList)
-      .filter((file) => file.type.startsWith("image/"))
-      .map((file) => ({ id: crypto.randomUUID(), nombre: file.name, file, miniatura: URL.createObjectURL(file) }));
-    if (nuevas.length === 0) {
-      setError("Elegí una imagen (foto o captura).");
-      return;
-    }
-    setImagenes((prev) => [...prev, ...nuevas]);
-  }, []);
+  const handleArchivos = useCallback(
+    async (fileList) => {
+      setError("");
+      const nuevas = Array.from(fileList)
+        .filter((file) => file.type.startsWith("image/"))
+        .map((file) => ({
+          id: crypto.randomUUID(),
+          nombre: file.name,
+          file,
+          miniatura: URL.createObjectURL(file),
+          procesando: autoRecorte,
+        }));
+      if (nuevas.length === 0) {
+        setError("Elegí una imagen (foto o captura).");
+        return;
+      }
+      setImagenes((prev) => [...prev, ...nuevas]);
+      if (!autoRecorte) return;
+
+      // Una a la vez (no en paralelo) para que la lista vaya mostrando el
+      // resultado foto por foto, como un escáner real — y porque la
+      // detección es trabajo pesado de CPU, hacerlo todo junto no la
+      // acelera (JS es de un solo hilo).
+      for (const item of nuevas) {
+        let recortada = null;
+        try {
+          recortada = await detectarYRecortarPagina(item.file);
+        } catch {
+          recortada = null; // no se pudo detectar/recortar: se deja la foto original
+        }
+        setImagenes((prev) =>
+          prev.map((i) => {
+            if (i.id !== item.id) return i;
+            if (!recortada) return { ...i, procesando: false };
+            URL.revokeObjectURL(i.miniatura);
+            return {
+              ...i,
+              file: new File([recortada], i.nombre, { type: "image/jpeg" }),
+              miniatura: URL.createObjectURL(recortada),
+              procesando: false,
+            };
+          })
+        );
+      }
+    },
+    [autoRecorte]
+  );
 
   function handleCamara(e) {
     if (e.target.files?.length) handleArchivos(e.target.files);
@@ -125,6 +163,20 @@ export default function ImagenesAPdfPage() {
         </Button>
         <input ref={inputCamaraRef} type="file" accept="image/*" capture="environment" hidden onChange={handleCamara} />
       </div>
+
+      <Form.Group className="mb-3">
+        <Form.Check
+          type="checkbox"
+          id="auto-recorte"
+          label="Recortar y enderezar automáticamente (como un escáner)"
+          checked={autoRecorte}
+          onChange={(e) => setAutoRecorte(e.target.checked)}
+        />
+        <Form.Text>
+          Detecta los bordes de la hoja y la endereza sola. Si no la encuentra con confianza (fondo parecido a la
+          hoja, foto borrosa), se usa la foto tal cual.
+        </Form.Text>
+      </Form.Group>
 
       <ListaArchivosOrdenable items={imagenes} onReordenar={setImagenes} onEliminar={eliminarImagen} />
 

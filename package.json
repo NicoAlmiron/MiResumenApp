@@ -13,6 +13,7 @@
     "@fortawesome/fontawesome-free": "^7.3.1",
     "@hello-pangea/dnd": "^18.0.1",
     "@react-oauth/google": "^0.13.5",
+    "@techstark/opencv-js": "^5.0.0-release.1",
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.1",
     "jszip": "^3.10.2",
