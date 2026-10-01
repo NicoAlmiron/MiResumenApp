@@ -11,10 +11,11 @@ import { nombrePorDefecto, conExtension } from "../../utils/nombreArchivo";
 // Arma un PDF de varias páginas a partir de varias imágenes/fotos — todo el
 // armado pasa por el navegador (pdf-lib + Canvas, mismo patrón que
 // UnirPdfsPage/DividirPdfPage). El recorte/enderezado y el filtro blanco y
-// negro son por foto (ver ListaImagenesOrdenable): "Auto-recorte" y "Blanco
-// y negro" de acá arriba solo fijan el valor por defecto de las fotos que
-// se agreguen de ahora en más, cada una se puede ajustar después con el
-// lapicito de su fila.
+// negro son por foto (ver ListaImagenesOrdenable), pero "Auto-recorte" y
+// "Blanco y negro" de la barra de arriba son atajos: además de fijar el
+// valor por defecto de las fotos que se agreguen de ahora en más, aplican
+// ese mismo valor de una a todas las que ya están en la lista — cada una
+// se puede desafinar después igual con el lapicito de su fila.
 export default function ImagenesAPdfPage() {
   const [imagenes, setImagenes] = useState([]);
   const [autoRecorte, setAutoRecorte] = useState(true);
@@ -118,27 +119,24 @@ export default function ImagenesAPdfPage() {
     });
   }
 
+  // Cambia cuál de los dos archivos (original/recortado) queda activo para
+  // un item puntual, liberando el object URL viejo — lo usan tanto el
+  // lapicito por foto como los botones globales de arriba.
+  function conRecorteEn(item, aplicado) {
+    const archivo = aplicado ? item.archivoRecortado : item.archivoOriginal;
+    URL.revokeObjectURL(item.miniatura);
+    return { ...item, recorteAplicado: aplicado, file: archivo, miniatura: URL.createObjectURL(archivo) };
+  }
+
   // Prende/apaga el recorte de una foto puntual. Si ya hay una versión
   // recortada en caché (archivoRecortado), solo cambia cuál de las dos se
   // usa — si todavía no se había intentado (autoRecorte estaba apagado al
   // subirla), recién ahí pide el recorte al backend.
   function alternarRecorte(item) {
     if (item.recorteAplicado) {
-      setImagenes((prev) =>
-        prev.map((i) => {
-          if (i.id !== item.id) return i;
-          URL.revokeObjectURL(i.miniatura);
-          return { ...i, recorteAplicado: false, file: i.archivoOriginal, miniatura: URL.createObjectURL(i.archivoOriginal) };
-        })
-      );
+      setImagenes((prev) => prev.map((i) => (i.id === item.id ? conRecorteEn(i, false) : i)));
     } else if (item.archivoRecortado) {
-      setImagenes((prev) =>
-        prev.map((i) => {
-          if (i.id !== item.id) return i;
-          URL.revokeObjectURL(i.miniatura);
-          return { ...i, recorteAplicado: true, file: i.archivoRecortado, miniatura: URL.createObjectURL(i.archivoRecortado) };
-        })
-      );
+      setImagenes((prev) => prev.map((i) => (i.id === item.id ? conRecorteEn(i, true) : i)));
     } else {
       recortarItem(item.id, item.archivoOriginal, item.nombre);
     }
@@ -146,6 +144,32 @@ export default function ImagenesAPdfPage() {
 
   function alternarFiltro(id) {
     setImagenes((prev) => prev.map((i) => (i.id === id ? { ...i, filtro: !i.filtro } : i)));
+  }
+
+  // Los dos botones de arriba ya no solo fijan el valor por defecto de las
+  // fotos nuevas — también se aplican de una a todas las que ya están en la
+  // lista, para no tener que ir foto por foto con el lapicito.
+  function alternarFiltroGlobal() {
+    const nuevoValor = !filtroDocumento;
+    setFiltroDocumento(nuevoValor);
+    setImagenes((prev) => prev.map((i) => ({ ...i, filtro: nuevoValor })));
+  }
+
+  async function alternarAutoRecorteGlobal() {
+    const nuevoValor = !autoRecorte;
+    setAutoRecorte(nuevoValor);
+    if (!nuevoValor) {
+      setImagenes((prev) => prev.map((i) => (i.recorteAplicado ? conRecorteEn(i, false) : i)));
+      return;
+    }
+    setImagenes((prev) => prev.map((i) => (!i.recorteAplicado && i.archivoRecortado ? conRecorteEn(i, true) : i)));
+    // Las que todavía no tienen una versión recortada en caché necesitan
+    // pedírsela al backend — una a la vez, como en la carga inicial.
+    for (const item of imagenes) {
+      if (!item.recorteAplicado && !item.archivoRecortado) {
+        await recortarItem(item.id, item.archivoOriginal, item.nombre);
+      }
+    }
   }
 
   async function convertirYDescargar() {
@@ -191,16 +215,16 @@ export default function ImagenesAPdfPage() {
               <button
                 type="button"
                 className={`toolbar-icon-btn ${autoRecorte ? "toolbar-icon-btn--activo" : ""}`}
-                title="Recortar y enderezar automáticamente"
-                onClick={() => setAutoRecorte((v) => !v)}
+                title="Recortar y enderezar automáticamente (todas las fotos)"
+                onClick={alternarAutoRecorteGlobal}
               >
                 <i className="bi bi-crop" aria-hidden="true" />
               </button>
               <button
                 type="button"
                 className={`toolbar-icon-btn ${filtroDocumento ? "toolbar-icon-btn--activo" : ""}`}
-                title="Filtro blanco y negro"
-                onClick={() => setFiltroDocumento((v) => !v)}
+                title="Filtro blanco y negro (todas las fotos)"
+                onClick={alternarFiltroGlobal}
               >
                 <i className="bi bi-circle-half" aria-hidden="true" />
               </button>

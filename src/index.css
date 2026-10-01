@@ -275,8 +275,9 @@ body {
 
 /* --- Herramientas: lista reordenable de fotos (Imágenes a PDF) — variante
    de .lista-ordenable__* con miniatura más grande (acá sí importa verla
-   bien, es lo único que hay que revisar antes de armar el PDF) y una fila
-   de edición por foto (lapicito, ver ListaImagenesOrdenable.jsx). --- */
+   bien, es lo único que hay que revisar antes de armar el PDF) y, por
+   foto, mantener el toque sobre la imagen abre una vista previa más
+   grande + los dos chips de ajuste (ver ListaImagenesOrdenable.jsx). --- */
 .lista-imagenes__item {
   background: var(--bs-body-bg);
   border: 1px solid var(--bs-border-color);
@@ -290,12 +291,22 @@ body {
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
 }
 
+.lista-imagenes__zona-preview {
+  cursor: pointer;
+  /* Evita que el navegador arranque su propio "seleccionar texto" o menú
+     contextual de imagen al mantener el toque — acá ese gesto es nuestro. */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 .lista-imagenes__miniatura {
   width: 5.5rem;
   height: 5.5rem;
   object-fit: cover;
   border-radius: var(--bs-border-radius-sm);
   flex-shrink: 0;
+  transition: filter 0.15s ease;
 }
 
 .lista-imagenes__estado {
@@ -310,10 +321,34 @@ body {
   color: var(--bs-info);
 }
 
+.lista-imagenes__preview {
+  margin-top: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.lista-imagenes__preview-img {
+  width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+  border-radius: var(--bs-border-radius);
+  background: #000;
+  transition: filter 0.15s ease;
+}
+
+/* Aproximación en vivo (CSS) del filtro blanco-y-negro real, que se aplica
+   recién al generar el PDF (backend, ver imagen_service.py) — acá alcanza
+   con una previsualización, no hace falta pegarle al servidor por cada
+   toque. */
+.lista-imagenes__img--filtro {
+  filter: grayscale(1) contrast(1.5);
+}
+
 .lista-imagenes__editor {
   display: flex;
   gap: 0.4rem;
-  padding: 0.5rem 0 0.1rem;
+  padding: 0.1rem 0;
   flex-wrap: wrap;
 }
 
@@ -540,11 +575,6 @@ body {
 
 .mini-badge-btn--descargar {
   background-color: var(--bs-info);
-}
-
-.mini-badge-btn--editar {
-  background-color: var(--bs-warning);
-  color: #212529;
 }
 
 .mini-badge-btn--eliminar {
