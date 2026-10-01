@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Container, Form, Button, Alert } from "react-bootstrap";
+import { Container, Card, Form, Button, Alert, Dropdown } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import ZonaCarga from "../../features/herramientas/ZonaCarga";
 import ListaImagenesOrdenable from "../../features/herramientas/ListaImagenesOrdenable";
@@ -22,6 +22,7 @@ export default function ImagenesAPdfPage() {
   const [nombreSalida, setNombreSalida] = useState("");
   const [procesando, setProcesando] = useState(false);
   const [error, setError] = useState("");
+  const inputGaleriaRef = useRef(null);
   const inputCamaraRef = useRef(null);
 
   // Los object URL de las miniaturas viven solo en memoria del navegador —
@@ -102,7 +103,9 @@ export default function ImagenesAPdfPage() {
     [autoRecorte, filtroDocumento, recortarItem]
   );
 
-  function handleCamara(e) {
+  // Lo usan los dos inputs ocultos del botón de cámara de la barra de
+  // herramientas (ver abajo): "Subir imagen" (galería) y "Tomar foto".
+  function handleInputArchivos(e) {
     if (e.target.files?.length) handleArchivos(e.target.files);
     e.target.value = "";
   }
@@ -168,82 +171,104 @@ export default function ImagenesAPdfPage() {
         <i className="bi bi-arrow-left me-1" aria-hidden="true" />
         Herramientas
       </Link>
-      <h4 className="mb-1">
-        <i className="bi bi-camera-fill me-2 text-info" aria-hidden="true" />
-        Imágenes a PDF
-      </h4>
-      <p className="text-body-secondary mb-4">Sacá fotos o subí imágenes y armá un PDF de varias páginas.</p>
 
-      {error && (
-        <Alert variant="danger" style={{ whiteSpace: "pre-wrap", fontSize: "0.85rem" }}>
-          {error}
-        </Alert>
-      )}
+      <Card>
+        <Card.Body>
+          <h4 className="mb-1">
+            <i className="bi bi-camera-fill me-2 text-info" aria-hidden="true" />
+            Imágenes a PDF
+          </h4>
+          <p className="text-body-secondary mb-3">Sacá fotos o subí imágenes y armá un PDF de varias páginas.</p>
 
-      <div className="d-flex flex-wrap gap-2 mb-3">
-        <ZonaCarga
-          accept="image/*"
-          multiple
-          onArchivos={handleArchivos}
-          texto="Elegir imágenes"
-          ayuda="También podés arrastrarlas acá"
-        />
-        <Button variant="outline-info" size="sm" className="align-self-start" onClick={() => inputCamaraRef.current?.click()}>
-          <i className="bi bi-camera-fill me-1" aria-hidden="true" />
-          Tomar foto
-        </Button>
-        <input ref={inputCamaraRef} type="file" accept="image/*" capture="environment" hidden onChange={handleCamara} />
-      </div>
+          {error && (
+            <Alert variant="danger" style={{ whiteSpace: "pre-wrap", fontSize: "0.85rem" }}>
+              {error}
+            </Alert>
+          )}
 
-      <div className="d-flex gap-2 mb-3">
-        <button
-          type="button"
-          className={`opcion-toggle ${autoRecorte ? "opcion-toggle--activo" : ""}`}
-          onClick={() => setAutoRecorte((v) => !v)}
-        >
-          <i className="bi bi-crop opcion-toggle__icono" aria-hidden="true" />
-          <span>Auto-recorte</span>
-          <i className={`bi ${autoRecorte ? "bi-check-circle-fill" : "bi-circle"} opcion-toggle__check`} aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          className={`opcion-toggle ${filtroDocumento ? "opcion-toggle--activo" : ""}`}
-          onClick={() => setFiltroDocumento((v) => !v)}
-        >
-          <i className="bi bi-contrast opcion-toggle__icono" aria-hidden="true" />
-          <span>Blanco y negro</span>
-          <i
-            className={`bi ${filtroDocumento ? "bi-check-circle-fill" : "bi-circle"} opcion-toggle__check`}
-            aria-hidden="true"
-          />
-        </button>
-      </div>
+          <div className="d-flex align-items-center justify-content-between mb-3">
+            <div className="d-flex gap-2">
+              <button
+                type="button"
+                className={`toolbar-icon-btn ${autoRecorte ? "toolbar-icon-btn--activo" : ""}`}
+                title="Recortar y enderezar automáticamente"
+                onClick={() => setAutoRecorte((v) => !v)}
+              >
+                <i className="bi bi-crop" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                className={`toolbar-icon-btn ${filtroDocumento ? "toolbar-icon-btn--activo" : ""}`}
+                title="Filtro blanco y negro"
+                onClick={() => setFiltroDocumento((v) => !v)}
+              >
+                <i className="bi bi-circle-half" aria-hidden="true" />
+              </button>
+            </div>
 
-      <ListaImagenesOrdenable
-        items={imagenes}
-        onReordenar={setImagenes}
-        onEliminar={eliminarImagen}
-        onAlternarRecorte={alternarRecorte}
-        onAlternarFiltro={alternarFiltro}
-      />
-
-      {imagenes.length > 0 && (
-        <>
-          <Form.Group className="mt-3">
-            <Form.Label>Nombre del archivo final</Form.Label>
-            <Form.Control
-              value={nombreSalida}
-              onChange={(e) => setNombreSalida(e.target.value)}
-              placeholder={nombrePorDefecto("pdf")}
+            <Dropdown align="end">
+              <Dropdown.Toggle variant="info" className="camara-btn-toggle" id="dropdown-camara" title="Agregar fotos">
+                <i className="bi bi-camera-fill" aria-hidden="true" />
+              </Dropdown.Toggle>
+              <Dropdown.Menu>
+                <Dropdown.Item onClick={() => inputGaleriaRef.current?.click()}>
+                  <i className="bi bi-images me-2" aria-hidden="true" />
+                  Subir imagen
+                </Dropdown.Item>
+                <Dropdown.Item onClick={() => inputCamaraRef.current?.click()}>
+                  <i className="bi bi-camera-fill me-2" aria-hidden="true" />
+                  Tomar foto
+                </Dropdown.Item>
+              </Dropdown.Menu>
+            </Dropdown>
+            <input ref={inputGaleriaRef} type="file" accept="image/*" multiple hidden onChange={handleInputArchivos} />
+            <input
+              ref={inputCamaraRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              hidden
+              onChange={handleInputArchivos}
             />
-          </Form.Group>
+          </div>
 
-          <Button variant="success" className="fw-semibold mt-3" disabled={procesando} onClick={convertirYDescargar}>
-            <i className="bi bi-download me-1" aria-hidden="true" />
-            {procesando ? "Generando..." : "Convertir y descargar"}
-          </Button>
-        </>
-      )}
+          {imagenes.length === 0 ? (
+            <ZonaCarga
+              accept="image/*"
+              multiple
+              onArchivos={handleArchivos}
+              texto="Elegir imágenes"
+              ayuda="También podés arrastrarlas acá"
+            />
+          ) : (
+            <ListaImagenesOrdenable
+              items={imagenes}
+              onReordenar={setImagenes}
+              onEliminar={eliminarImagen}
+              onAlternarRecorte={alternarRecorte}
+              onAlternarFiltro={alternarFiltro}
+            />
+          )}
+
+          {imagenes.length > 0 && (
+            <>
+              <Form.Group className="mt-3">
+                <Form.Label>Nombre del archivo final</Form.Label>
+                <Form.Control
+                  value={nombreSalida}
+                  onChange={(e) => setNombreSalida(e.target.value)}
+                  placeholder={nombrePorDefecto("pdf")}
+                />
+              </Form.Group>
+
+              <Button variant="success" className="fw-semibold mt-3" disabled={procesando} onClick={convertirYDescargar}>
+                <i className="bi bi-download me-1" aria-hidden="true" />
+                {procesando ? "Generando..." : "Convertir y descargar"}
+              </Button>
+            </>
+          )}
+        </Card.Body>
+      </Card>
     </Container>
   );
 }

@@ -66,7 +66,7 @@ export default function ListaImagenesOrdenable({ items, onReordenar, onEliminar,
                               <i className="bi bi-crop" aria-hidden="true" /> Recorte
                             </span>
                             <span className={`lista-imagenes__estado ${item.filtro ? "lista-imagenes__estado--activo" : ""}`}>
-                              <i className="bi bi-contrast" aria-hidden="true" /> B/N
+                              <i className="bi bi-circle-half" aria-hidden="true" /> B/N
                             </span>
                           </div>
                         )}
@@ -105,7 +105,7 @@ export default function ListaImagenesOrdenable({ items, onReordenar, onEliminar,
                           className={`chip-toggle ${item.filtro ? "chip-toggle--activo" : ""}`}
                           onClick={() => onAlternarFiltro(item.id)}
                         >
-                          <i className="bi bi-contrast" aria-hidden="true" />
+                          <i className="bi bi-circle-half" aria-hidden="true" />
                           Blanco y negro
                         </button>
                       </div>
