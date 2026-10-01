@@ -1,6 +1,7 @@
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { reconocerTextoDeLote } from "./ocrTexto";
 import { obtenerCv } from "./opencv";
+import { cargarComoBitmap, cerrarBitmap } from "./cargarImagen";
 
 // A4 en puntos (72 por pulgada) — tamaño de página para los PDF armados a
 // partir de texto (OCR), ya que ahí no hay una imagen que les marque el
@@ -65,13 +66,13 @@ async function aplicarFiltroDocumento(canvas) {
 // paso normaliza el formato de entrada a algo que pdf-lib sabe embeber,
 // sea cual sea el archivo original.
 export async function procesarImagen(file, aplicarFiltro) {
-  const bitmap = await createImageBitmap(file);
+  const bitmap = await cargarComoBitmap(file);
   const canvas = document.createElement("canvas");
   canvas.width = bitmap.width;
   canvas.height = bitmap.height;
   const ctx = canvas.getContext("2d");
   ctx.drawImage(bitmap, 0, 0);
-  bitmap.close();
+  cerrarBitmap(bitmap);
 
   if (aplicarFiltro) {
     await aplicarFiltroDocumento(canvas);

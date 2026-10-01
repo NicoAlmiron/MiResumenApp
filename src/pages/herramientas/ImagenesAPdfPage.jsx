@@ -67,8 +67,9 @@ export default function ImagenesAPdfPage() {
         let recortada = null;
         try {
           recortada = await detectarYRecortarPagina(item.file);
-        } catch {
+        } catch (err) {
           recortada = null; // no se pudo detectar/recortar: se deja la foto original
+          console.error("Auto-recorte falló para", item.nombre, err);
         }
         setImagenes((prev) =>
           prev.map((i) => {
@@ -125,8 +126,10 @@ export default function ImagenesAPdfPage() {
       const docx = await convertirPdfAWord(pdfFile);
       const nombre = conExtension(nombreSalida || nombrePorDefecto("docx"), "docx");
       descargarArchivo(docx, nombre, MIME_DOCX);
-    } catch {
-      setError("Algo falló al generar el archivo. Probá de nuevo.");
+    } catch (err) {
+      console.error("Error al generar el archivo:", err);
+      const detalle = err instanceof Error ? err.message : String(err);
+      setError(`Algo falló al generar el archivo: ${detalle}`);
     } finally {
       setProcesando(false);
       setProgresoOcr("");

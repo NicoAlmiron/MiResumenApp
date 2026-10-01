@@ -1,4 +1,5 @@
 import { obtenerCv } from "./opencv";
+import { cargarComoBitmap, cerrarBitmap } from "./cargarImagen";
 
 // Reduce la imagen a esto (lado más largo) solo para la etapa de detección
 // de bordes — las fotos de celular son enormes y correr Canny/contornos a
@@ -167,7 +168,7 @@ function buscarCuadrilatero(cv, mat) {
 // usa el OCR cuando no reconoce texto en alguna imagen.
 export async function detectarYRecortarPagina(file) {
   const cv = await obtenerCv();
-  const bitmap = await createImageBitmap(file);
+  const bitmap = await cargarComoBitmap(file);
   const anchoOriginal = bitmap.width;
   const altoOriginal = bitmap.height;
 
@@ -187,7 +188,7 @@ export async function detectarYRecortarPagina(file) {
   canvasChico.width = Math.round(anchoOriginal * escalaDeteccion);
   canvasChico.height = Math.round(altoOriginal * escalaDeteccion);
   canvasChico.getContext("2d").drawImage(bitmap, 0, 0, canvasChico.width, canvasChico.height);
-  bitmap.close();
+  cerrarBitmap(bitmap);
 
   const src = cv.imread(canvasOrigen);
   const chico = cv.imread(canvasChico);
