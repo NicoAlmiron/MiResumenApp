@@ -219,6 +219,14 @@ body {
   opacity: 1;
 }
 
+.lista-ordenable__miniatura {
+  width: 2rem;
+  height: 2rem;
+  object-fit: cover;
+  border-radius: var(--bs-border-radius-sm);
+  flex-shrink: 0;
+}
+
 /* --- Ventas: tarjetas de pedido (vista mobile, reemplaza a la tabla) --- */
 .pedido-tarjeta {
   transition: border-color 0.15s ease;

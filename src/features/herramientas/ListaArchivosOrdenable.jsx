@@ -2,7 +2,9 @@ import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 
 // Lista reordenable genérica: mismo patrón visual/técnico que el Kanban del
 // Tablero (@hello-pangea/dnd + mini-botón eliminar), reutilizado acá para
-// fijar el orden final antes de unir los PDF. `items` = [{id, nombre, detalle}].
+// fijar el orden final antes de unir los PDF. `items` = [{id, nombre, detalle,
+// miniatura?}] — si trae `miniatura` (una URL) se muestra esa imagen en vez
+// del ícono fijo de PDF (la usa ImagenesAPdfPage.jsx).
 export default function ListaArchivosOrdenable({ items, onReordenar, onEliminar }) {
   function handleDragEnd(result) {
     const { source, destination } = result;
@@ -38,7 +40,11 @@ export default function ListaArchivosOrdenable({ items, onReordenar, onEliminar 
                     >
                       <i className="bi bi-grip-vertical" aria-hidden="true" />
                     </span>
-                    <i className="bi bi-file-earmark-pdf-fill text-danger fs-5" aria-hidden="true" />
+                    {item.miniatura ? (
+                      <img src={item.miniatura} alt="" className="lista-ordenable__miniatura" />
+                    ) : (
+                      <i className="bi bi-file-earmark-pdf-fill text-danger fs-5" aria-hidden="true" />
+                    )}
                     <div className="flex-grow-1 overflow-hidden">
                       <div className="small fw-semibold text-truncate" title={item.nombre}>
                         {item.nombre}

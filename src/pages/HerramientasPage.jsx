@@ -17,6 +17,12 @@ const HERRAMIENTAS = [
     descripcion: "Partí un PDF largo en varios archivos más chicos.",
   },
   {
+    ruta: "imagenes-a-pdf",
+    icono: "bi-camera-fill",
+    titulo: "Imágenes a PDF/Word",
+    descripcion: "Subí fotos o imágenes y armá un PDF o Word de varias páginas.",
+  },
+  {
     ruta: "pdf-a-word",
     icono: "bi-filetype-docx",
     titulo: "PDF a Word",

@@ -19,6 +19,7 @@ import ConfiguracionPage from "./pages/ConfiguracionPage";
 // React.lazy en vez de inflar el bundle inicial de Login/Resúmenes/Ventas.
 const UnirPdfsPage = lazy(() => import("./pages/herramientas/UnirPdfsPage"));
 const DividirPdfPage = lazy(() => import("./pages/herramientas/DividirPdfPage"));
+const ImagenesAPdfPage = lazy(() => import("./pages/herramientas/ImagenesAPdfPage"));
 const PdfAWordPage = lazy(() => import("./pages/herramientas/PdfAWordPage"));
 const WordAPdfPage = lazy(() => import("./pages/herramientas/WordAPdfPage"));
 const AdminPage = lazy(() => import("./pages/AdminPage"));
@@ -80,6 +81,14 @@ export default function App() {
                   element={
                     <Suspense fallback={<CargandoHerramienta />}>
                       <DividirPdfPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="herramientas/imagenes-a-pdf"
+                  element={
+                    <Suspense fallback={<CargandoHerramienta />}>
+                      <ImagenesAPdfPage />
                     </Suspense>
                   }
                 />
