@@ -4,8 +4,7 @@ import { Link } from "react-router-dom";
 import ZonaCarga from "../../features/herramientas/ZonaCarga";
 import ListaArchivosOrdenable from "../../features/herramientas/ListaArchivosOrdenable";
 import { construirPdfDeImagenes, construirPdfConOcr } from "../../utils/imagenesAPdf";
-import { detectarYRecortarPagina } from "../../utils/autoRecorte";
-import { convertirPdfAWord } from "../../api/herramientas";
+import { convertirPdfAWord, recortarImagenEnBackend } from "../../api/herramientas";
 import { descargarArchivo } from "../../utils/descargarArchivo";
 import { nombrePorDefecto, conExtension } from "../../utils/nombreArchivo";
 
@@ -60,13 +59,14 @@ export default function ImagenesAPdfPage() {
       if (!autoRecorte) return;
 
       // Una a la vez (no en paralelo) para que la lista vaya mostrando el
-      // resultado foto por foto, como un escáner real — y porque la
-      // detección es trabajo pesado de CPU, hacerlo todo junto no la
-      // acelera (JS es de un solo hilo).
+      // resultado foto por foto, como un escáner real. El recorte corre en
+      // el backend (OpenCV real, ver app/services/imagen_service.py) — acá
+      // solo se sube la foto y se espera el resultado.
       for (const item of nuevas) {
         let recortada = null;
         try {
-          recortada = await detectarYRecortarPagina(item.file);
+          const resultado = await recortarImagenEnBackend(item.file);
+          if (resultado.recorteAplicado) recortada = resultado.blob;
         } catch (err) {
           recortada = null; // no se pudo detectar/recortar: se deja la foto original
           console.error("Auto-recorte falló para", item.nombre, err);

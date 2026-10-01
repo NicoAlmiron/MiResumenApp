@@ -1,7 +1,7 @@
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { reconocerTextoDeLote } from "./ocrTexto";
-import { obtenerCv } from "./opencv";
 import { cargarComoBitmap, cerrarBitmap } from "./cargarImagen";
+import { filtrarImagenEnBackend } from "../api/herramientas";
 
 // A4 en puntos (72 por pulgada) — tamaño de página para los PDF armados a
 // partir de texto (OCR), ya que ahí no hay una imagen que les marque el
@@ -11,80 +11,30 @@ const MARGEN = 50;
 const TAMANO_FUENTE = 11;
 const INTERLINEADO = 14;
 
-// Fotos de celular reales pueden ser enormes (10+ MP) — sin esto, OpenCV
-// procesa a resolución completa y puede quedarse sin memoria en el
-// navegador (sobre todo en celulares). Un documento escaneado no necesita
-// tanta resolución para quedar legible, así que se achica antes de filtrar
-// si hace falta (a diferencia del recorte, acá el resultado de este achique
-// SÍ queda como salida final, no es solo para detectar).
-const MAX_LADO_FILTRO = 2200;
-
-function limitarResolucion(canvas) {
-  const escala = Math.min(1, MAX_LADO_FILTRO / Math.max(canvas.width, canvas.height));
-  if (escala >= 1) return;
-  const anchoChico = Math.round(canvas.width * escala);
-  const altoChico = Math.round(canvas.height * escala);
-  const temporal = document.createElement("canvas");
-  temporal.width = canvas.width;
-  temporal.height = canvas.height;
-  temporal.getContext("2d").drawImage(canvas, 0, 0);
-  canvas.width = anchoChico;
-  canvas.height = altoChico;
-  canvas.getContext("2d").drawImage(temporal, 0, 0, anchoChico, altoChico);
-}
-
-// Blanco y negro tipo "escáner" con umbral ADAPTATIVO (no un contraste
-// global fijo): cada zona de la imagen se compara contra el promedio de su
-// propio entorno, no contra un valor fijo para toda la foto — así no se
-// "quema" a blanco el texto en fotos con luz despareja o algo sobreexpuestas
-// (lo que pasaba antes con un simple ajuste de contraste/brillo global).
-// blockSize se escala con la resolución (fotos de celular son enormes, un
-// tamaño de ventana fijo en píxeles no tendría sentido en todas).
-async function aplicarFiltroDocumento(canvas) {
-  const cv = await obtenerCv();
-  limitarResolucion(canvas);
-  const src = cv.imread(canvas);
-  const gris = new cv.Mat();
-  const resultado = new cv.Mat();
-  try {
-    cv.cvtColor(src, gris, cv.COLOR_RGBA2GRAY);
-    let blockSize = Math.round(Math.min(canvas.width, canvas.height) * 0.025);
-    if (blockSize % 2 === 0) blockSize += 1;
-    blockSize = Math.max(15, blockSize);
-    cv.adaptiveThreshold(gris, resultado, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, blockSize, 15);
-    cv.imshow(canvas, resultado);
-  } finally {
-    src.delete();
-    gris.delete();
-    resultado.delete();
-  }
-}
-
 // Dibuja el File en un canvas offscreen (createImageBitmap decodifica
-// cualquier formato que el navegador entienda: JPEG/PNG/WEBP/GIF/...),
-// aplica el filtro si corresponde, y siempre re-codifica a JPEG — esto de
-// paso normaliza el formato de entrada a algo que pdf-lib sabe embeber,
-// sea cual sea el archivo original.
+// cualquier formato que el navegador entienda: JPEG/PNG/WEBP/GIF/...) y
+// siempre re-codifica a JPEG — esto de paso normaliza el formato de entrada
+// a algo que pdf-lib sabe embeber, sea cual sea el archivo original. El
+// filtro tipo escáner corre en el backend (OpenCV real, ver
+// app/services/imagen_service.py) — acá solo se sube la foto.
 export async function procesarImagen(file, aplicarFiltro) {
-  const bitmap = await cargarComoBitmap(file);
-  const canvas = document.createElement("canvas");
-  canvas.width = bitmap.width;
-  canvas.height = bitmap.height;
-  const ctx = canvas.getContext("2d");
-  ctx.drawImage(bitmap, 0, 0);
-  cerrarBitmap(bitmap);
-
+  let archivoFinal = file;
   if (aplicarFiltro) {
     try {
-      await aplicarFiltroDocumento(canvas);
+      archivoFinal = await filtrarImagenEnBackend(file);
     } catch (err) {
-      // OpenCV es un paquete pesado (~15MB) que se baja recién acá — en una
-      // conexión real (celular) puede fallar al cargar. Mismo criterio que
-      // el recorte automático: si no se puede, se sigue con la imagen tal
-      // cual en vez de cortar la generación entera por esto.
+      // Si falla (red caída, etc.) se sigue con la imagen tal cual en vez
+      // de cortar la generación entera por esto.
       console.error("No se pudo aplicar el filtro, se usa la imagen sin filtrar:", err);
     }
   }
+
+  const bitmap = await cargarComoBitmap(archivoFinal);
+  const canvas = document.createElement("canvas");
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  canvas.getContext("2d").drawImage(bitmap, 0, 0);
+  cerrarBitmap(bitmap);
 
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
   return { blob, width: canvas.width, height: canvas.height };
