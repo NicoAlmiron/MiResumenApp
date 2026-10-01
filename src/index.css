@@ -227,6 +227,117 @@ body {
   flex-shrink: 0;
 }
 
+/* --- Herramientas: opciones tipo "botón" (Imágenes a PDF) — dos botones
+   grandes arriba de la página en vez de checkboxes con texto largo debajo;
+   el tilde (bi-check-circle-fill / bi-circle) hace de indicador de
+   activado/desactivado a la vez. --- */
+.opcion-toggle {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.65rem 0.5rem;
+  border-radius: var(--bs-border-radius-lg);
+  border: 1px solid var(--bs-border-color);
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.opcion-toggle:hover {
+  border-color: var(--bs-info);
+}
+
+.opcion-toggle--activo {
+  border-color: var(--bs-info);
+  background: rgba(34, 211, 238, 0.08);
+}
+
+.opcion-toggle__icono {
+  font-size: 1.35rem;
+  color: var(--bs-info);
+}
+
+.opcion-toggle__check {
+  font-size: 0.8rem;
+  color: var(--bs-border-color);
+}
+
+.opcion-toggle--activo .opcion-toggle__check {
+  color: var(--bs-info);
+}
+
+/* --- Herramientas: lista reordenable de fotos (Imágenes a PDF) — variante
+   de .lista-ordenable__* con miniatura más grande (acá sí importa verla
+   bien, es lo único que hay que revisar antes de armar el PDF) y una fila
+   de edición por foto (lapicito, ver ListaImagenesOrdenable.jsx). --- */
+.lista-imagenes__item {
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  padding: 0.5rem 0.75rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.lista-imagenes__item--dragging {
+  border-color: var(--bs-primary);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+.lista-imagenes__miniatura {
+  width: 5.5rem;
+  height: 5.5rem;
+  object-fit: cover;
+  border-radius: var(--bs-border-radius-sm);
+  flex-shrink: 0;
+}
+
+.lista-imagenes__estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.7rem;
+  color: var(--bs-secondary-color);
+}
+
+.lista-imagenes__estado--activo {
+  color: var(--bs-info);
+}
+
+.lista-imagenes__editor {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.5rem 0 0.1rem;
+  flex-wrap: wrap;
+}
+
+.chip-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--bs-border-color);
+  background: transparent;
+  color: var(--bs-body-color);
+  font-size: 0.75rem;
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.chip-toggle--activo {
+  border-color: var(--bs-info);
+  background: rgba(34, 211, 238, 0.12);
+  color: var(--bs-info);
+}
+
+.chip-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* --- Ventas: tarjetas de pedido (vista mobile, reemplaza a la tabla) --- */
 .pedido-tarjeta {
   transition: border-color 0.15s ease;
@@ -426,6 +537,11 @@ body {
 
 .mini-badge-btn--descargar {
   background-color: var(--bs-info);
+}
+
+.mini-badge-btn--editar {
+  background-color: var(--bs-warning);
+  color: #212529;
 }
 
 .mini-badge-btn--eliminar {

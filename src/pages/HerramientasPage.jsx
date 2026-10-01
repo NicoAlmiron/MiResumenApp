@@ -19,8 +19,8 @@ const HERRAMIENTAS = [
   {
     ruta: "imagenes-a-pdf",
     icono: "bi-camera-fill",
-    titulo: "Imágenes a PDF/Word",
-    descripcion: "Subí fotos o imágenes y armá un PDF o Word de varias páginas.",
+    titulo: "Imágenes a PDF",
+    descripcion: "Sacá fotos o subí imágenes y armá un PDF de varias páginas, recortado y enderezado.",
   },
   {
     ruta: "pdf-a-word",
