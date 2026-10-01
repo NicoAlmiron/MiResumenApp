@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
-import { Card, Form, Button, Alert } from "react-bootstrap";
+import { Card, Form, Button, Alert, Spinner } from "react-bootstrap";
 import { useAuth } from "../context/AuthContext";
+import { ping } from "../api/salud";
 
 export default function LoginPage() {
   const { estaAutenticado, login } = useAuth();
@@ -12,6 +13,15 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [enviando, setEnviando] = useState(false);
+  // Render duerme el backend a los 15 min sin tráfico — al entrar a Login se
+  // lo despierta de una (ping() ya de paso despierta Gotenberg, ver
+  // app/main.py /salud) y se bloquea "Iniciar sesión" hasta que responda,
+  // para no comerse un cold start recién al tocar el botón.
+  const [servidorListo, setServidorListo] = useState(false);
+
+  useEffect(() => {
+    ping().finally(() => setServidorListo(true));
+  }, []);
 
   // Ya logueado y entró a /login igual (por ejemplo, escribiendo la URL a
   // mano): lo mandamos derecho a donde iba, o a "/" (IndexRedirect decide
@@ -73,10 +83,19 @@ export default function LoginPage() {
                 required
               />
             </Form.Group>
-            <Button type="submit" variant="primary" className="fw-semibold mt-2" disabled={enviando}>
-              <i className="bi bi-box-arrow-in-right me-2" aria-hidden="true" />
-              {enviando ? "Ingresando..." : "Iniciar sesión"}
+            <Button type="submit" variant="primary" className="fw-semibold mt-2" disabled={enviando || !servidorListo}>
+              {!servidorListo ? (
+                <Spinner animation="border" size="sm" className="me-2" role="status" aria-hidden="true" />
+              ) : (
+                <i className="bi bi-box-arrow-in-right me-2" aria-hidden="true" />
+              )}
+              {!servidorListo ? "Despertando el servidor..." : enviando ? "Ingresando..." : "Iniciar sesión"}
             </Button>
+            {!servidorListo && (
+              <p className="text-body-secondary small text-center mb-0">
+                Puede tardar unos segundos la primera vez.
+              </p>
+            )}
           </Form>
 
           <div className="login-hint mt-4 small">
