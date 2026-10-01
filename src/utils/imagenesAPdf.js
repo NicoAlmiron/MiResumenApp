@@ -10,6 +10,28 @@ const MARGEN = 50;
 const TAMANO_FUENTE = 11;
 const INTERLINEADO = 14;
 
+// Fotos de celular reales pueden ser enormes (10+ MP) — sin esto, OpenCV
+// procesa a resolución completa y puede quedarse sin memoria en el
+// navegador (sobre todo en celulares). Un documento escaneado no necesita
+// tanta resolución para quedar legible, así que se achica antes de filtrar
+// si hace falta (a diferencia del recorte, acá el resultado de este achique
+// SÍ queda como salida final, no es solo para detectar).
+const MAX_LADO_FILTRO = 2200;
+
+function limitarResolucion(canvas) {
+  const escala = Math.min(1, MAX_LADO_FILTRO / Math.max(canvas.width, canvas.height));
+  if (escala >= 1) return;
+  const anchoChico = Math.round(canvas.width * escala);
+  const altoChico = Math.round(canvas.height * escala);
+  const temporal = document.createElement("canvas");
+  temporal.width = canvas.width;
+  temporal.height = canvas.height;
+  temporal.getContext("2d").drawImage(canvas, 0, 0);
+  canvas.width = anchoChico;
+  canvas.height = altoChico;
+  canvas.getContext("2d").drawImage(temporal, 0, 0, anchoChico, altoChico);
+}
+
 // Blanco y negro tipo "escáner" con umbral ADAPTATIVO (no un contraste
 // global fijo): cada zona de la imagen se compara contra el promedio de su
 // propio entorno, no contra un valor fijo para toda la foto — así no se
@@ -19,6 +41,7 @@ const INTERLINEADO = 14;
 // tamaño de ventana fijo en píxeles no tendría sentido en todas).
 async function aplicarFiltroDocumento(canvas) {
   const cv = await obtenerCv();
+  limitarResolucion(canvas);
   const src = cv.imread(canvas);
   const gris = new cv.Mat();
   const resultado = new cv.Mat();

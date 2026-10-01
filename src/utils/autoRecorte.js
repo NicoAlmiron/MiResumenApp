@@ -2,9 +2,12 @@ import { obtenerCv } from "./opencv";
 
 // Reduce la imagen a esto (lado más largo) solo para la etapa de detección
 // de bordes — las fotos de celular son enormes y correr Canny/contornos a
-// resolución completa sería lento. El recorte final sí usa la imagen
-// original completa (los puntos detectados se reescalan).
+// resolución completa sería lento (los puntos detectados se reescalan para
+// el recorte final, que usa su propio límite, ver MAX_LADO_SALIDA).
 const MAX_LADO_DETECCION = 1200;
+// Límite para el recorte final (no solo para detectar) — ver nota en
+// detectarYRecortarPagina. Mismo valor que usa el filtro en imagenesAPdf.js.
+const MAX_LADO_SALIDA = 2200;
 const AREA_MINIMA_FRACCION = 0.1;
 // Con umbrales de Canny más permisivos, a veces "se detecta" el borde del
 // encuadre de la foto entera como si fuera la hoja (falso positivo clásico:
@@ -168,15 +171,21 @@ export async function detectarYRecortarPagina(file) {
   const anchoOriginal = bitmap.width;
   const altoOriginal = bitmap.height;
 
+  // El resultado final tampoco necesita la resolución completa de una foto
+  // de celular real (10+ MP) — además de ser innecesario para que quede
+  // legible, correr warpPerspective sobre eso puede quedarse sin memoria en
+  // el navegador (sobre todo en celulares). Mismo límite que usa el filtro
+  // en imagenesAPdf.js, por consistencia.
+  const escalaSalida = Math.min(1, MAX_LADO_SALIDA / Math.max(anchoOriginal, altoOriginal));
   const canvasOrigen = document.createElement("canvas");
-  canvasOrigen.width = anchoOriginal;
-  canvasOrigen.height = altoOriginal;
-  canvasOrigen.getContext("2d").drawImage(bitmap, 0, 0);
+  canvasOrigen.width = Math.round(anchoOriginal * escalaSalida);
+  canvasOrigen.height = Math.round(altoOriginal * escalaSalida);
+  canvasOrigen.getContext("2d").drawImage(bitmap, 0, 0, canvasOrigen.width, canvasOrigen.height);
 
-  const escala = Math.min(1, MAX_LADO_DETECCION / Math.max(anchoOriginal, altoOriginal));
+  const escalaDeteccion = Math.min(1, MAX_LADO_DETECCION / Math.max(anchoOriginal, altoOriginal));
   const canvasChico = document.createElement("canvas");
-  canvasChico.width = Math.round(anchoOriginal * escala);
-  canvasChico.height = Math.round(altoOriginal * escala);
+  canvasChico.width = Math.round(anchoOriginal * escalaDeteccion);
+  canvasChico.height = Math.round(altoOriginal * escalaDeteccion);
   canvasChico.getContext("2d").drawImage(bitmap, 0, 0, canvasChico.width, canvasChico.height);
   bitmap.close();
 
@@ -188,9 +197,13 @@ export async function detectarYRecortarPagina(file) {
     cuadrilatero = buscarCuadrilatero(cv, chico);
     if (!cuadrilatero) return null;
 
+    // Los puntos salen en el espacio de canvasChico — se reescalan al
+    // espacio de canvasOrigen (que puede ser más chico que la foto real,
+    // ver escalaSalida arriba), no a la resolución original de la foto.
+    const factor = escalaSalida / escalaDeteccion;
     const datos = cuadrilatero.data32S; // [x0,y0, x1,y1, x2,y2, x3,y3] a resolución chica
     const puntosChicos = [0, 1, 2, 3].map((i) => ({ x: datos[i * 2], y: datos[i * 2 + 1] }));
-    const [tl, tr, br, bl] = ordenarPuntos(puntosChicos).map((p) => ({ x: p.x / escala, y: p.y / escala }));
+    const [tl, tr, br, bl] = ordenarPuntos(puntosChicos).map((p) => ({ x: p.x * factor, y: p.y * factor }));
 
     const anchoDestino = Math.round(Math.max(distancia(br, bl), distancia(tr, tl)));
     const altoDestino = Math.round(Math.max(distancia(tr, br), distancia(tl, bl)));
