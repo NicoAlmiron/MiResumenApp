@@ -1,35 +1,29 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { Spinner } from "react-bootstrap";
-
-const DURACION_PRESS_MS = 450;
+import { Button, Spinner } from "react-bootstrap";
+import EditorEsquinas from "./EditorEsquinas";
 
 // Lista reordenable de fotos para "Imágenes a PDF" — variante de
-// ListaArchivosOrdenable.jsx (Unir PDFs) pensada para imágenes: miniatura
-// grande y, por foto, mantener el toque sobre la imagen abre una vista
-// previa más grande con dos chips para prender/apagar el recorte
-// automático y el filtro blanco y negro de ESA foto puntual (el recorte
-// puede fallar en una sola del lote, o querer el filtro solo en algunas).
-// `items` = [{id, nombre, miniatura, procesando, recorteAplicado, filtro}]
-// — ver ImagenesAPdfPage.jsx, que arma ese estado y resuelve los callbacks
-// de abajo.
-export default function ListaImagenesOrdenable({ items, onReordenar, onEliminar, onAlternarRecorte, onAlternarFiltro }) {
+// ListaArchivosOrdenable.jsx (Unir PDFs) pensada para imágenes. Tocar (o
+// hacer click en) una foto la despliega con una vista previa grande, dos
+// chips para el recorte automático y el blanco y negro de ESA foto, y el
+// botón para ajustar las 4 esquinas a mano. Tocar de nuevo la contrae.
+// `items` = [{id, nombre, archivoOriginal, miniatura, procesando,
+// recorteAplicado, filtro, esquinas}] — ver ImagenesAPdfPage.jsx.
+export default function ListaImagenesOrdenable({
+  items,
+  onReordenar,
+  onEliminar,
+  onAlternarRecorte,
+  onAlternarFiltro,
+  onAplicarAjuste,
+}) {
   const [abiertoId, setAbiertoId] = useState(null);
-  const pressTimer = useRef(null);
+  const [ajustandoId, setAjustandoId] = useState(null);
 
-  function iniciarPress(id) {
-    cancelarPress();
-    pressTimer.current = setTimeout(() => {
-      setAbiertoId((actual) => (actual === id ? null : id));
-      pressTimer.current = null;
-    }, DURACION_PRESS_MS);
-  }
-
-  function cancelarPress() {
-    if (pressTimer.current) {
-      clearTimeout(pressTimer.current);
-      pressTimer.current = null;
-    }
+  function alternarAbierto(id) {
+    setAbiertoId((actual) => (actual === id ? null : id));
+    setAjustandoId(null);
   }
 
   function handleDragEnd(result) {
@@ -52,6 +46,7 @@ export default function ListaImagenesOrdenable({ items, onReordenar, onEliminar,
           <div ref={provided.innerRef} {...provided.droppableProps} className="d-flex flex-column gap-2">
             {items.map((item, index) => {
               const abierto = abiertoId === item.id;
+              const ajustando = ajustandoId === item.id;
               const claseFiltro = item.filtro ? "lista-imagenes__img--filtro" : "";
               return (
                 <Draggable key={item.id} draggableId={String(item.id)} index={index}>
@@ -72,11 +67,17 @@ export default function ListaImagenesOrdenable({ items, onReordenar, onEliminar,
                         </span>
                         <div
                           className="lista-imagenes__zona-preview d-flex align-items-center gap-2 flex-grow-1 overflow-hidden"
-                          title="Mantené el toque para ver y ajustar"
-                          onPointerDown={() => iniciarPress(item.id)}
-                          onPointerUp={cancelarPress}
-                          onPointerLeave={cancelarPress}
-                          onPointerCancel={cancelarPress}
+                          role="button"
+                          tabIndex={0}
+                          aria-expanded={abierto}
+                          title={abierto ? "Contraer" : "Ver y ajustar"}
+                          onClick={() => alternarAbierto(item.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              alternarAbierto(item.id);
+                            }
+                          }}
                         >
                           <img src={item.miniatura} alt="" className={`lista-imagenes__miniatura ${claseFiltro}`} />
                           <div className="flex-grow-1 overflow-hidden">
@@ -116,26 +117,54 @@ export default function ListaImagenesOrdenable({ items, onReordenar, onEliminar,
 
                       {abierto && (
                         <div className="lista-imagenes__preview">
-                          <img src={item.miniatura} alt="" className={`lista-imagenes__preview-img ${claseFiltro}`} />
-                          <div className="lista-imagenes__editor">
-                            <button
-                              type="button"
-                              className={`chip-toggle ${item.recorteAplicado ? "chip-toggle--activo" : ""}`}
-                              disabled={item.procesando}
-                              onClick={() => onAlternarRecorte(item)}
-                            >
-                              <i className="bi bi-crop" aria-hidden="true" />
-                              Recorte automático
-                            </button>
-                            <button
-                              type="button"
-                              className={`chip-toggle ${item.filtro ? "chip-toggle--activo" : ""}`}
-                              onClick={() => onAlternarFiltro(item.id)}
-                            >
-                              <i className="bi bi-circle-half" aria-hidden="true" />
-                              Blanco y negro
-                            </button>
-                          </div>
+                          {ajustando ? (
+                            <EditorEsquinas
+                              url={item.urlOriginal}
+                              esquinasIniciales={item.esquinas}
+                              onCancelar={() => setAjustandoId(null)}
+                              onAplicar={async (esquinas) => {
+                                const aplicado = await onAplicarAjuste(item, esquinas);
+                                if (aplicado) setAjustandoId(null);
+                              }}
+                            />
+                          ) : (
+                            <>
+                              <img
+                                src={item.miniatura}
+                                alt=""
+                                className={`lista-imagenes__preview-img ${claseFiltro}`}
+                              />
+                              <div className="lista-imagenes__editor">
+                                <button
+                                  type="button"
+                                  className={`chip-toggle ${item.recorteAplicado ? "chip-toggle--activo" : ""}`}
+                                  disabled={item.procesando}
+                                  onClick={() => onAlternarRecorte(item)}
+                                >
+                                  <i className="bi bi-crop" aria-hidden="true" />
+                                  Recorte automático
+                                </button>
+                                <button
+                                  type="button"
+                                  className={`chip-toggle ${item.filtro ? "chip-toggle--activo" : ""}`}
+                                  onClick={() => onAlternarFiltro(item.id)}
+                                >
+                                  <i className="bi bi-circle-half" aria-hidden="true" />
+                                  Blanco y negro
+                                </button>
+                                <Button
+                                  variant="outline-info"
+                                  size="sm"
+                                  className="rounded-pill"
+                                  disabled={item.procesando}
+                                  onClick={() => setAjustandoId(item.id)}
+                                >
+                                  <i className="bi bi-arrows-move me-1" aria-hidden="true" />
+                                  Ajustar recorte
+                                </Button>
+                              </div>
+                            </>
+                          )}
                         </div>
                       )}
                     </div>

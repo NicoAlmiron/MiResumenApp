@@ -4,7 +4,10 @@ import { Link } from "react-router-dom";
 import ZonaCarga from "../../features/herramientas/ZonaCarga";
 import ListaImagenesOrdenable from "../../features/herramientas/ListaImagenesOrdenable";
 import { construirPdfDeImagenes } from "../../utils/imagenesAPdf";
-import { recortarImagenEnBackend } from "../../api/herramientas";
+import { recortarImagenEnBackend, recortarImagenManualEnBackend } from "../../api/herramientas";
+
+// El backend devuelve las 4 esquinas como lista plana [x1,y1,x2,y2,...].
+const aPares = (plana) => (plana ? [0, 2, 4, 6].map((i) => [plana[i], plana[i + 1]]) : null);
 import { descargarArchivo } from "../../utils/descargarArchivo";
 import { nombrePorDefecto, conExtension } from "../../utils/nombreArchivo";
 
@@ -36,7 +39,11 @@ export default function ImagenesAPdfPage() {
     imagenesRef.current = imagenes;
   }, [imagenes]);
   useEffect(() => {
-    return () => imagenesRef.current.forEach((item) => URL.revokeObjectURL(item.miniatura));
+    return () =>
+      imagenesRef.current.forEach((item) => {
+        URL.revokeObjectURL(item.miniatura);
+        URL.revokeObjectURL(item.urlOriginal);
+      });
   }, []);
 
   // Pide el recorte al backend (OpenCV real, ver app/services/imagen_service.py)
@@ -47,10 +54,12 @@ export default function ImagenesAPdfPage() {
   const recortarItem = useCallback(async (id, archivoOriginal, nombre) => {
     setImagenes((prev) => prev.map((i) => (i.id === id ? { ...i, procesando: true } : i)));
     let recortada = null;
+    let esquinas = null;
     try {
       const resultado = await recortarImagenEnBackend(archivoOriginal);
       if (resultado.recorteAplicado) {
         recortada = new File([resultado.blob], nombre, { type: "image/jpeg" });
+        esquinas = aPares(resultado.esquinas);
       }
     } catch (err) {
       console.error("Auto-recorte falló para", nombre, err);
@@ -66,11 +75,29 @@ export default function ImagenesAPdfPage() {
           recorteAplicado: true,
           file: recortada,
           miniatura: URL.createObjectURL(recortada),
+          esquinas,
           procesando: false,
         };
       })
     );
   }, []);
+
+  // Recorte con las esquinas que ajustó el usuario a mano. Devuelve true si
+  // se aplicó; si falla, muestra el error y deja el editor abierto.
+  async function aplicarAjusteManual(item, esquinas) {
+    try {
+      const blob = await recortarImagenManualEnBackend(item.archivoOriginal, esquinas);
+      const recortada = new File([blob], item.nombre, { type: "image/jpeg" });
+      setImagenes((prev) =>
+        prev.map((i) => (i.id === item.id ? { ...conRecorteEn({ ...i, archivoRecortado: recortada }, true), esquinas } : i))
+      );
+      return true;
+    } catch (err) {
+      console.error("Ajuste manual falló", err);
+      setError("No se pudo aplicar el recorte manual. Probá mover las esquinas de nuevo.");
+      return false;
+    }
+  }
 
   const handleArchivos = useCallback(
     async (fileList) => {
@@ -82,6 +109,7 @@ export default function ImagenesAPdfPage() {
           nombre: file.name,
           file,
           archivoOriginal: file,
+          urlOriginal: URL.createObjectURL(file),
           archivoRecortado: null,
           recorteAplicado: false,
           filtro: filtroDocumento,
@@ -114,7 +142,10 @@ export default function ImagenesAPdfPage() {
   function eliminarImagen(id) {
     setImagenes((prev) => {
       const item = prev.find((i) => i.id === id);
-      if (item) URL.revokeObjectURL(item.miniatura);
+      if (item) {
+        URL.revokeObjectURL(item.miniatura);
+        URL.revokeObjectURL(item.urlOriginal);
+      }
       return prev.filter((i) => i.id !== id);
     });
   }
@@ -271,6 +302,7 @@ export default function ImagenesAPdfPage() {
               onEliminar={eliminarImagen}
               onAlternarRecorte={alternarRecorte}
               onAlternarFiltro={alternarFiltro}
+              onAplicarAjuste={aplicarAjusteManual}
             />
           )}
 

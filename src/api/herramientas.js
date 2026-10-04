@@ -23,7 +23,17 @@ export async function recortarImagenEnBackend(archivo) {
   const respuesta = await apiFetch("/herramientas/recortar-imagen", { method: "POST", body: form, raw: true });
   const blob = await respuesta.blob();
   const recorteAplicado = respuesta.headers.get("X-Recorte-Aplicado") === "true";
-  return { blob, recorteAplicado };
+  const esquinasHeader = respuesta.headers.get("X-Esquinas");
+  const esquinas = recorteAplicado && esquinasHeader ? JSON.parse(esquinasHeader) : null;
+  return { blob, recorteAplicado, esquinas };
+}
+
+export async function recortarImagenManualEnBackend(archivo, esquinas) {
+  const form = new FormData();
+  form.append("archivo", archivo);
+  form.append("esquinas", JSON.stringify(esquinas.flat()));
+  const respuesta = await apiFetch("/herramientas/recortar-manual", { method: "POST", body: form, raw: true });
+  return respuesta.blob();
 }
 
 export function filtrarImagenEnBackend(archivo) {
