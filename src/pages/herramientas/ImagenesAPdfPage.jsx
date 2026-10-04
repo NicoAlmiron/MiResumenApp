@@ -9,6 +9,7 @@ import { recortarImagenEnBackend, recortarImagenManualEnBackend } from "../../ap
 // El backend devuelve las 4 esquinas como lista plana [x1,y1,x2,y2,...].
 const aPares = (plana) => (plana ? [0, 2, 4, 6].map((i) => [plana[i], plana[i + 1]]) : null);
 import { descargarArchivo } from "../../utils/descargarArchivo";
+import { crearVistaPrevia } from "../../utils/vistaPrevia";
 import { nombrePorDefecto, conExtension } from "../../utils/nombreArchivo";
 
 // Arma un PDF de varias páginas a partir de varias imágenes/fotos — todo el
@@ -39,12 +40,22 @@ export default function ImagenesAPdfPage() {
     imagenesRef.current = imagenes;
   }, [imagenes]);
   useEffect(() => {
-    return () =>
-      imagenesRef.current.forEach((item) => {
-        URL.revokeObjectURL(item.miniatura);
-        URL.revokeObjectURL(item.urlOriginal);
-      });
+    return () => imagenesRef.current.forEach(liberarUrls);
   }, []);
+
+  // Las vistas previas son object URL propios de cada item; se liberan al
+  // quitar la foto o al desmontar la página.
+  function liberarUrls(item) {
+    URL.revokeObjectURL(item.urlOriginal);
+    if (item.urlRecortada) URL.revokeObjectURL(item.urlRecortada);
+  }
+
+  // Aplica un recorte ya calculado: reemplaza la vista previa anterior del
+  // recorte (si había) por la nueva.
+  async function conRecorteNuevo(recortada, esquinas) {
+    const vista = await crearVistaPrevia(recortada);
+    return { urlRecortada: URL.createObjectURL(vista), esquinas, archivoRecortado: recortada };
+  }
 
   // Pide el recorte al backend (OpenCV real, ver app/services/imagen_service.py)
   // para UNA foto puntual y actualiza ese item — la usan tanto el alta
@@ -64,20 +75,13 @@ export default function ImagenesAPdfPage() {
     } catch (err) {
       console.error("Auto-recorte falló para", nombre, err);
     }
+    const nuevo = recortada ? await conRecorteNuevo(recortada, esquinas) : null;
     setImagenes((prev) =>
       prev.map((i) => {
         if (i.id !== id) return i;
-        if (!recortada) return { ...i, procesando: false };
-        URL.revokeObjectURL(i.miniatura);
-        return {
-          ...i,
-          archivoRecortado: recortada,
-          recorteAplicado: true,
-          file: recortada,
-          miniatura: URL.createObjectURL(recortada),
-          esquinas,
-          procesando: false,
-        };
+        if (!nuevo) return { ...i, procesando: false };
+        if (i.urlRecortada) URL.revokeObjectURL(i.urlRecortada);
+        return { ...i, ...nuevo, recorteAplicado: true, file: recortada, procesando: false };
       })
     );
   }, []);
@@ -88,8 +92,13 @@ export default function ImagenesAPdfPage() {
     try {
       const blob = await recortarImagenManualEnBackend(item.archivoOriginal, esquinas);
       const recortada = new File([blob], item.nombre, { type: "image/jpeg" });
+      const nuevo = await conRecorteNuevo(recortada, esquinas);
       setImagenes((prev) =>
-        prev.map((i) => (i.id === item.id ? { ...conRecorteEn({ ...i, archivoRecortado: recortada }, true), esquinas } : i))
+        prev.map((i) => {
+          if (i.id !== item.id) return i;
+          if (i.urlRecortada) URL.revokeObjectURL(i.urlRecortada);
+          return { ...i, ...nuevo, recorteAplicado: true, file: recortada, miniatura: nuevo.urlRecortada };
+        })
       );
       return true;
     } catch (err) {
@@ -102,20 +111,26 @@ export default function ImagenesAPdfPage() {
   const handleArchivos = useCallback(
     async (fileList) => {
       setError("");
-      const nuevas = Array.from(fileList)
-        .filter((file) => file.type.startsWith("image/"))
-        .map((file) => ({
+      // Una foto a la vez: decodificar varias fotos de 12 MP en paralelo es lo
+      // que hacía que el navegador del celular descartara las miniaturas.
+      const nuevas = [];
+      for (const file of Array.from(fileList).filter((f) => f.type.startsWith("image/"))) {
+        const vista = await crearVistaPrevia(file);
+        const urlOriginal = URL.createObjectURL(vista);
+        nuevas.push({
           id: crypto.randomUUID(),
           nombre: file.name,
           file,
           archivoOriginal: file,
-          urlOriginal: URL.createObjectURL(file),
+          urlOriginal,
+          urlRecortada: null,
+          miniatura: urlOriginal,
           archivoRecortado: null,
           recorteAplicado: false,
           filtro: filtroDocumento,
-          miniatura: URL.createObjectURL(file),
           procesando: autoRecorte,
-        }));
+        });
+      }
       if (nuevas.length === 0) {
         setError("Elegí una imagen (foto o captura).");
         return;
@@ -142,10 +157,7 @@ export default function ImagenesAPdfPage() {
   function eliminarImagen(id) {
     setImagenes((prev) => {
       const item = prev.find((i) => i.id === id);
-      if (item) {
-        URL.revokeObjectURL(item.miniatura);
-        URL.revokeObjectURL(item.urlOriginal);
-      }
+      if (item) liberarUrls(item);
       return prev.filter((i) => i.id !== id);
     });
   }
@@ -154,9 +166,12 @@ export default function ImagenesAPdfPage() {
   // un item puntual, liberando el object URL viejo — lo usan tanto el
   // lapicito por foto como los botones globales de arriba.
   function conRecorteEn(item, aplicado) {
-    const archivo = aplicado ? item.archivoRecortado : item.archivoOriginal;
-    URL.revokeObjectURL(item.miniatura);
-    return { ...item, recorteAplicado: aplicado, file: archivo, miniatura: URL.createObjectURL(archivo) };
+    return {
+      ...item,
+      recorteAplicado: aplicado,
+      file: aplicado ? item.archivoRecortado : item.archivoOriginal,
+      miniatura: aplicado ? item.urlRecortada : item.urlOriginal,
+    };
   }
 
   // Prende/apaga el recorte de una foto puntual. Si ya hay una versión
