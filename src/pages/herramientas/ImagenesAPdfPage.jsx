@@ -81,7 +81,7 @@ export default function ImagenesAPdfPage() {
         if (i.id !== id) return i;
         if (!nuevo) return { ...i, procesando: false };
         if (i.urlRecortada) URL.revokeObjectURL(i.urlRecortada);
-        return { ...i, ...nuevo, recorteAplicado: true, file: recortada, procesando: false };
+        return { ...i, ...nuevo, recorteAplicado: true, file: recortada, miniatura: nuevo.urlRecortada, procesando: false };
       })
     );
   }, []);

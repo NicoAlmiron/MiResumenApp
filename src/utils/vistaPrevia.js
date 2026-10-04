@@ -1,10 +1,10 @@
 import { cargarComoBitmap, cerrarBitmap } from "./cargarImagen";
 
-// Versión liviana (lado mayor de `maxLado` px) para miniaturas y el editor.
-// Las fotos del celular son de 12 MP o más: mostrarlas completas, varias a la
-// vez, hace que el navegador descarte las imágenes. El recorte y el PDF siguen
-// usando el archivo completo.
-export async function crearVistaPrevia(archivo, maxLado = 900) {
+// Reduce la foto a un JPEG de lado mayor `maxLado` px. Las fotos del celular
+// son de 12 MP o más: decodificarlas completas, varias a la vez, hace que el
+// navegador del celular descarte imágenes. El recorte y el PDF usan estas
+// versiones (o el archivo completo solo cuando hace falta).
+export async function reducirImagen(archivo, maxLado) {
   const bitmap = await cargarComoBitmap(archivo);
   try {
     const escala = Math.min(1, maxLado / Math.max(bitmap.width, bitmap.height));
@@ -12,8 +12,13 @@ export async function crearVistaPrevia(archivo, maxLado = 900) {
     canvas.width = Math.round(bitmap.width * escala);
     canvas.height = Math.round(bitmap.height * escala);
     canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    return await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.85));
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.85));
+    return { blob, width: canvas.width, height: canvas.height };
   } finally {
     cerrarBitmap(bitmap);
   }
+}
+
+export async function crearVistaPrevia(archivo, maxLado = 900) {
+  return (await reducirImagen(archivo, maxLado)).blob;
 }

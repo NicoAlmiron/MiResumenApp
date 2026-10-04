@@ -1,17 +1,19 @@
 import { PDFDocument } from "pdf-lib";
-import { cargarComoBitmap, cerrarBitmap } from "./cargarImagen";
+import { reducirImagen } from "./vistaPrevia";
+
 import { filtrarImagenEnBackend } from "../api/herramientas";
+
+// Lado mayor de la imagen embebida: alcanza de sobra para una hoja A4 a
+// buena resolución, y mantiene el PDF y la memoria del celular bajo control.
+const LADO_MAXIMO_PDF = 2200;
 
 // A4 en puntos (72 por pulgada) — cada página del PDF queda en este tamaño,
 // listo para imprimir, en vez del tamaño exacto de la foto.
 const TAMANO_PAGINA = [595.28, 841.89];
 
-// Dibuja el File en un canvas offscreen (createImageBitmap decodifica
-// cualquier formato que el navegador entienda: JPEG/PNG/WEBP/GIF/...) y
-// siempre re-codifica a JPEG — esto de paso normaliza el formato de entrada
-// a algo que pdf-lib sabe embeber, sea cual sea el archivo original. El
-// filtro tipo escáner corre en el backend (OpenCV real, ver
-// app/services/imagen_service.py) — acá solo se sube la foto.
+// Reduce la foto (createImageBitmap decodifica cualquier formato que el navegador
+// entienda) y la re-codifica a JPEG, para que pdf-lib la pueda embeber. El
+// filtro tipo escáner corre en el backend (ver app/services/imagen_service.py).
 export async function procesarImagen(file, aplicarFiltro) {
   let archivoFinal = file;
   if (aplicarFiltro) {
@@ -24,15 +26,7 @@ export async function procesarImagen(file, aplicarFiltro) {
     }
   }
 
-  const bitmap = await cargarComoBitmap(archivoFinal);
-  const canvas = document.createElement("canvas");
-  canvas.width = bitmap.width;
-  canvas.height = bitmap.height;
-  canvas.getContext("2d").drawImage(bitmap, 0, 0);
-  cerrarBitmap(bitmap);
-
-  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
-  return { blob, width: canvas.width, height: canvas.height };
+  return reducirImagen(archivoFinal, LADO_MAXIMO_PDF);
 }
 
 // Cada página queda en A4 (ver TAMANO_PAGINA), lista para imprimir — la
@@ -61,8 +55,12 @@ async function agregarPaginaDeImagen(pdf, blob, width, height) {
 export async function construirPdfDeImagenes(imagenes) {
   const pdf = await PDFDocument.create();
   for (const item of imagenes) {
-    const { blob, width, height } = await procesarImagen(item.file, item.filtro);
-    await agregarPaginaDeImagen(pdf, blob, width, height);
+    try {
+      const { blob, width, height } = await procesarImagen(item.file, item.filtro);
+      await agregarPaginaDeImagen(pdf, blob, width, height);
+    } catch (err) {
+      throw new Error(`No se pudo procesar "${item.nombre}": ${err.message}`);
+    }
   }
   return pdf.save();
 }
