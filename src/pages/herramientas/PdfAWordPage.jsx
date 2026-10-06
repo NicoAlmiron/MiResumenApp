@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Container, Form, Button, Alert, Card, Placeholder, Spinner } from "react-bootstrap";
+import { Container, Form, Button, Alert, Card, Placeholder, ProgressBar, Spinner } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import ZonaCarga from "../../features/herramientas/ZonaCarga";
 import { iniciarConversionPdfAWord, consultarTrabajo, descargarTrabajo } from "../../api/herramientas";
@@ -9,12 +9,13 @@ import { nombrePorDefecto, conExtension } from "../../utils/nombreArchivo";
 const MIME_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const ESPERA_INICIAL_MS = 3000;
 const ESPERA_MAXIMA_MS = 10000;
-const TOPE_TOTAL_MS = 20 * 60 * 1000;
+const TOPE_TOTAL_MS = 60 * 60 * 1000;
 
 const TEXTO_POR_FASE = {
   subiendo: "Subiendo el PDF…",
   en_cola: "Esperando turno para convertir…",
-  procesando: "Reconociendo el texto de las páginas. Puede tardar varios minutos según el tamaño del documento.",
+  procesando: "Reconociendo el texto…",
+  armando: "Armando el Word…",
   descargando: "Descargando el Word…",
 };
 
@@ -28,6 +29,7 @@ export default function PdfAWordPage() {
   const [fase, setFase] = useState("inicio");
   const [trabajoId, setTrabajoId] = useState(null);
   const [error, setError] = useState("");
+  const [progreso, setProgreso] = useState({ total: 0, listas: 0 });
   const nombreRef = useRef("");
   const desmontado = useRef(false);
 
@@ -61,6 +63,7 @@ export default function PdfAWordPage() {
           setFase("error");
           return;
         }
+        setProgreso({ total: estado.total_paginas ?? 0, listas: estado.paginas_listas ?? 0 });
         setFase(estado.estado);
       } catch (err) {
         if (desmontado.current) return;
@@ -120,7 +123,12 @@ export default function PdfAWordPage() {
     setFase("inicio");
   }
 
-  const enProceso = ["subiendo", "en_cola", "procesando", "descargando"].includes(fase);
+  const enProceso = ["subiendo", "en_cola", "procesando", "armando", "descargando"].includes(fase);
+  const textoFase =
+    fase === "procesando" && progreso.total > 0
+      ? `Reconociendo la página ${Math.min(progreso.listas + 1, progreso.total)} de ${progreso.total}…`
+      : TEXTO_POR_FASE[fase];
+  const porcentaje = progreso.total > 0 ? Math.round((progreso.listas / progreso.total) * 100) : 0;
 
   return (
     <Container className="py-4" style={{ maxWidth: 720 }}>
@@ -161,14 +169,18 @@ export default function PdfAWordPage() {
           <Card.Body>
             <div className="d-flex align-items-center gap-2 mb-3">
               <Spinner animation="border" size="sm" role="status" />
-              <span>{TEXTO_POR_FASE[fase]}</span>
+              <span>{textoFase}</span>
             </div>
-            <Placeholder as="div" animation="glow" className="mb-2">
-              <Placeholder xs={12} />
-              <Placeholder xs={10} />
-              <Placeholder xs={11} />
-              <Placeholder xs={7} />
-            </Placeholder>
+            {progreso.total > 0 && fase === "procesando" ? (
+              <ProgressBar now={porcentaje} label={`${porcentaje}%`} className="mb-3" animated />
+            ) : (
+              <Placeholder as="div" animation="glow" className="mb-2">
+                <Placeholder xs={12} />
+                <Placeholder xs={10} />
+                <Placeholder xs={11} />
+                <Placeholder xs={7} />
+              </Placeholder>
+            )}
             <p className="small text-body-secondary mb-0 text-truncate">{archivo?.name}</p>
           </Card.Body>
         </Card>
