@@ -1,4 +1,7 @@
 const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+// Microservicio de herramientas pesadas (recorte de fotos, PDF a Word en
+// segundo plano) — ver MiResumenAPI/app/herramientas_main.py.
+export const HERRAMIENTAS_URL = import.meta.env.VITE_HERRAMIENTAS_URL ?? "http://localhost:8001";
 const CLAVE_STORAGE = "miresumen_auth";
 
 export class ApiError extends Error {
@@ -32,13 +35,13 @@ function mensajeDeDetail(detail) {
 // Si `body` es un FormData (subida de archivos), no se serializa a JSON ni
 // se fuerza el Content-Type — el navegador arma el "multipart/form-data;
 // boundary=..." solo, y si nosotros mandamos otro Content-Type lo pisa mal.
-export async function apiFetch(path, { method = "GET", body, headers, raw = false, ...resto } = {}) {
+export async function apiFetch(path, { method = "GET", body, headers, raw = false, base = BASE_URL, ...resto } = {}) {
   const token = leerToken();
   const esFormData = body instanceof FormData;
 
   let respuesta;
   try {
-    respuesta = await fetch(`${BASE_URL}${path}`, {
+    respuesta = await fetch(`${base}${path}`, {
       method,
       headers: {
         ...(esFormData ? {} : { "Content-Type": "application/json" }),
