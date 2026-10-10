@@ -11,6 +11,12 @@ const HERRAMIENTAS = [
     descripcion: "Combiná varios PDF en uno solo, en el orden que elijas.",
   },
   {
+    ruta: "unir-archivos",
+    icono: "bi-collection-fill",
+    titulo: "Unir archivos en PDF",
+    descripcion: "Juntá PDF, Word, PowerPoint, Excel e imágenes en un solo PDF.",
+  },
+  {
     ruta: "dividir-pdf",
     icono: "bi-scissors",
     titulo: "Dividir PDF",

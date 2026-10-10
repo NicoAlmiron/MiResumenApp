@@ -33,6 +33,25 @@ export function consultarTrabajo(id) {
   return apiFetch(`/trabajos/${id}`, SERVICIO);
 }
 
+// Unir archivos en un PDF: se crea el trabajo, se sube cada archivo con su
+// posición en la lista (así el orden se respeta aunque se suban en paralelo)
+// y después se inicia la unión.
+export function crearUnion(nombreSalida) {
+  const form = new FormData();
+  form.append("nombre_salida", nombreSalida);
+  return apiFetch("/trabajos/unir", { method: "POST", body: form, ...SERVICIO });
+}
+
+export function subirArchivoAUnion(id, archivo, posicion) {
+  const form = formularioConArchivo(archivo);
+  form.append("posicion", String(posicion));
+  return apiFetch(`/trabajos/${id}/archivos`, { method: "POST", body: form, ...SERVICIO });
+}
+
+export function iniciarUnion(id) {
+  return apiFetch(`/trabajos/${id}/iniciar`, { method: "POST", ...SERVICIO });
+}
+
 export async function descargarTrabajo(id) {
   const respuesta = await apiFetch(`/trabajos/${id}/archivo`, { raw: true, ...SERVICIO });
   return respuesta.blob();

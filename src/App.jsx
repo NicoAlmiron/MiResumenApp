@@ -18,6 +18,7 @@ import ConfiguracionPage from "./pages/ConfiguracionPage";
 // Páginas menos frecuentes / pesadas: quedan en chunks separados con
 // React.lazy en vez de inflar el bundle inicial de Login/Resúmenes/Ventas.
 const UnirPdfsPage = lazy(() => import("./pages/herramientas/UnirPdfsPage"));
+const UnirArchivosPage = lazy(() => import("./pages/herramientas/UnirArchivosPage"));
 const DividirPdfPage = lazy(() => import("./pages/herramientas/DividirPdfPage"));
 const ImagenesAPdfPage = lazy(() => import("./pages/herramientas/ImagenesAPdfPage"));
 const PdfAWordPage = lazy(() => import("./pages/herramientas/PdfAWordPage"));
@@ -73,6 +74,14 @@ export default function App() {
                   element={
                     <Suspense fallback={<CargandoHerramienta />}>
                       <UnirPdfsPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="herramientas/unir-archivos"
+                  element={
+                    <Suspense fallback={<CargandoHerramienta />}>
+                      <UnirArchivosPage />
                     </Suspense>
                   }
                 />

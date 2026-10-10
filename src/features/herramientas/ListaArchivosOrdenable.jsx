@@ -46,7 +46,7 @@ export default function ListaArchivosOrdenable({ items, onReordenar, onEliminar 
                     {item.miniatura ? (
                       <img src={item.miniatura} alt="" className="lista-ordenable__miniatura" />
                     ) : (
-                      <i className="bi bi-file-earmark-pdf-fill text-danger fs-5" aria-hidden="true" />
+                      <i className={`bi ${item.icono ?? "bi-file-earmark-pdf-fill text-danger"} fs-5`} aria-hidden="true" />
                     )}
                     <div className="flex-grow-1 overflow-hidden">
                       <div className="small fw-semibold text-truncate" title={item.nombre}>
