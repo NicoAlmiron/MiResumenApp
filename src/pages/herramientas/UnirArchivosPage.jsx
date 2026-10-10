@@ -47,6 +47,26 @@ const TOPE_TOTAL_MS = 60 * 60 * 1000;
 const extensionDe = (nombre) => nombre.split(".").pop().toLowerCase();
 const formatearTamano = (bytes) => (bytes >= MB ? `${(bytes / MB).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`);
 
+const ESTADOS = {
+  pendiente: { icono: "bi-circle", clase: "text-body-secondary", texto: "En espera" },
+  subiendo: { spinner: true, clase: "text-info", texto: "Subiendo" },
+  subido: { icono: "bi-cloud-check", clase: "text-body-secondary", texto: "Subido" },
+  en_cola: { icono: "bi-hourglass-split", clase: "text-body-secondary", texto: "En cola" },
+  convirtiendo: { spinner: true, clase: "text-info", texto: "Convirtiendo" },
+  listo: { icono: "bi-check-circle-fill", clase: "text-success", texto: "Listo" },
+  error: { icono: "bi-x-circle-fill", clase: "text-danger", texto: "No se pudo convertir" },
+};
+
+function EstadoArchivo({ estado }) {
+  const e = ESTADOS[estado] ?? ESTADOS.pendiente;
+  return (
+    <span className={`${e.clase} d-inline-flex align-items-center gap-1 flex-shrink-0 unir-estados__estado`} title={e.texto}>
+      {e.spinner ? <Spinner animation="border" size="sm" /> : <i className={`bi ${e.icono}`} aria-hidden="true" />}
+      <span>{e.texto}</span>
+    </span>
+  );
+}
+
 // Une PDF, Word, PowerPoint, Excel e imágenes en un solo PDF. Los archivos se
 // suben de a 3 al microservicio de herramientas, que empieza a convertir cada
 // uno apenas llega; al terminar de subir se inicia la unión en el orden de la
@@ -55,7 +75,10 @@ export default function UnirArchivosPage() {
   const [archivos, setArchivos] = useState([]);
   const [nombreSalida, setNombreSalida] = useState("");
   const [fase, setFase] = useState("inicio");
-  const [avance, setAvance] = useState({ listos: 0, total: 0 });
+  // Estado de cada archivo: el de subida lo lleva esta página, el de
+  // conversión lo informa el servidor (por posición en la lista).
+  const [subida, setSubida] = useState([]);
+  const [servidor, setServidor] = useState({});
   const [trabajoId, setTrabajoId] = useState(null);
   const [error, setError] = useState("");
   const [aviso, setAviso] = useState("");
@@ -93,8 +116,8 @@ export default function UnirArchivosPage() {
           setFase("error");
           return;
         }
-        setAvance({ listos: estado.archivos_listos ?? 0, total: estado.total_archivos ?? 0 });
-        setFase(estado.estado);
+        setServidor(Object.fromEntries((estado.archivos ?? []).map((a) => [a.posicion, a.estado])));
+        if (estado.estado !== "subiendo") setFase(estado.estado);
       } catch (err) {
         if (desmontado.current) return;
         if (err.status === 404) {
@@ -160,34 +183,42 @@ export default function UnirArchivosPage() {
     setError("");
     setAviso("");
     setFase("subiendo");
-    setAvance({ listos: 0, total: archivos.length });
+    setSubida(archivos.map(() => "pendiente"));
+    setServidor({});
+    const marcarSubida = (posicion, estado) =>
+      !desmontado.current && setSubida((prev) => prev.map((e, i) => (i === posicion ? estado : e)));
+    let id = null;
     try {
-      const { id } = await crearUnion(conExtension(nombreSalida || nombrePorDefecto("pdf"), "pdf"));
+      ({ id } = await crearUnion(conExtension(nombreSalida || nombrePorDefecto("pdf"), "pdf")));
+      // Se empieza a consultar ya: el servidor convierte cada archivo apenas llega.
+      setTrabajoId(id);
       let siguiente = 0;
-      let subidos = 0;
       // Tres "hilos" que van tomando el próximo archivo de la lista; cada uno
       // se sube con su posición, así el orden final no depende de cuál llega antes.
       async function hiloDeSubida() {
         while (siguiente < archivos.length) {
           const posicion = siguiente++;
           const item = archivos[posicion];
+          marcarSubida(posicion, "subiendo");
           try {
             await subirArchivoAUnion(id, item.file, posicion);
           } catch (err) {
-            if (err.status) throw new Error(`${item.nombre}: ${err.message}`);
+            if (err.status) {
+              marcarSubida(posicion, "error");
+              throw new Error(`${item.nombre}: ${err.message}`);
+            }
             await subirArchivoAUnion(id, item.file, posicion); // reintento si fue un corte de red
           }
-          subidos += 1;
-          if (!desmontado.current) setAvance({ listos: subidos, total: archivos.length });
+          marcarSubida(posicion, "subido");
         }
       }
       await Promise.all(Array.from({ length: Math.min(SUBIDAS_EN_PARALELO, archivos.length) }, hiloDeSubida));
       await iniciarUnion(id);
       if (desmontado.current) return;
       setFase("convirtiendo");
-      setTrabajoId(id);
     } catch (err) {
       if (desmontado.current) return;
+      setTrabajoId(null);
       setError(
         err.status === 0
           ? "No se pudo conectar con el servicio de herramientas. Si estuvo inactivo tarda un minuto en despertar: probá de nuevo."
@@ -206,13 +237,21 @@ export default function UnirArchivosPage() {
   }
 
   const enProceso = ["subiendo", "convirtiendo", "armando", "descargando"].includes(fase);
-  const porcentaje = avance.total > 0 ? Math.round((avance.listos / avance.total) * 100) : 0;
-  const textoFase = {
-    subiendo: `Subiendo archivos: ${avance.listos} de ${avance.total}`,
-    convirtiendo: `Convirtiendo a PDF: ${avance.listos} de ${avance.total}`,
-    armando: "Uniendo todo en un solo PDF…",
-    descargando: "Descargando el PDF…",
-  }[fase];
+  const total = archivos.length;
+  const estadoDe = (i) => (servidor[i] === "pendiente" ? "en_cola" : servidor[i] ?? subida[i] ?? "pendiente");
+  const estados = archivos.map((_, i) => estadoDe(i));
+  const terminados = estados.filter((e) => e === "listo" || e === "error").length;
+  const subidos = subida.filter((e) => e === "subido").length;
+  const finalizando = fase === "armando" || fase === "descargando";
+  const porcentaje = finalizando ? 100 : total > 0 ? Math.round((terminados / total) * 100) : 0;
+  const enCurso = archivos.filter((_, i) => estados[i] === "convirtiendo" || estados[i] === "subiendo");
+  const textoActual = finalizando
+    ? fase === "armando"
+      ? "Uniendo todo en un solo PDF…"
+      : "Descargando el PDF…"
+    : enCurso.length
+      ? enCurso.map((a) => `${estados[archivos.indexOf(a)] === "subiendo" ? "Subiendo" : "Convirtiendo"} ${a.nombre}`).join(" · ")
+      : "Esperando turno…";
 
   return (
     <Container className="py-4" style={{ maxWidth: 720 }}>
@@ -268,15 +307,29 @@ export default function UnirArchivosPage() {
       {enProceso && (
         <Card aria-live="polite">
           <Card.Body>
-            <div className="d-flex align-items-center gap-2 mb-3">
-              <Spinner animation="border" size="sm" role="status" />
-              <span>{textoFase}</span>
+            <div className="d-flex justify-content-between small mb-1">
+              <span className="fw-semibold">Progreso general</span>
+              <span className="text-body-secondary">
+                {terminados} de {total} listos{subidos < total ? ` · subidos ${subidos} de ${total}` : ""}
+              </span>
             </div>
-            <ProgressBar
-              now={fase === "armando" || fase === "descargando" ? 100 : porcentaje}
-              label={fase === "subiendo" || fase === "convirtiendo" ? `${porcentaje}%` : ""}
-              animated
-            />
+            <ProgressBar now={porcentaje} label={`${porcentaje}%`} className="mb-3" />
+
+            <div className="small fw-semibold mb-1">Ahora</div>
+            <div className="d-flex align-items-center gap-2 small mb-1 text-truncate">
+              <Spinner animation="border" size="sm" role="status" />
+              <span className="text-truncate">{textoActual}</span>
+            </div>
+            <ProgressBar now={100} striped animated variant="info" style={{ height: "0.4rem" }} className="mb-3" />
+
+            <ul className="unir-estados list-unstyled small mb-0">
+              {archivos.map((a, i) => (
+                <li key={a.id} className="d-flex align-items-center gap-2">
+                  <EstadoArchivo estado={estados[i]} />
+                  <span className="text-truncate flex-grow-1">{a.nombre}</span>
+                </li>
+              ))}
+            </ul>
             <p className="small text-body-secondary mt-3 mb-0">
               Los Word, PowerPoint y Excel se convierten en el servidor: con muchos archivos puede tardar unos minutos.
             </p>

@@ -717,3 +717,16 @@ body {
   touch-action: none;
   cursor: grab;
 }
+
+/* --- Herramientas: estado por archivo en "Unir archivos en PDF" --- */
+.unir-estados {
+  max-height: 16rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.unir-estados__estado {
+  width: 9.5rem;
+}
