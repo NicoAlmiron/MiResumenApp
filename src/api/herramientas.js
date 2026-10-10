@@ -48,6 +48,14 @@ export function subirArchivoAUnion(id, archivo, posicion) {
   return apiFetch(`/trabajos/${id}/archivos`, { method: "POST", body: form, ...SERVICIO });
 }
 
+export function cancelarArchivoDeUnion(id, posicion) {
+  return apiFetch(`/trabajos/${id}/archivos/${posicion}/cancelar`, { method: "POST", ...SERVICIO });
+}
+
+export function cancelarUnion(id) {
+  return apiFetch(`/trabajos/${id}`, { method: "DELETE", ...SERVICIO });
+}
+
 export function iniciarUnion(id) {
   return apiFetch(`/trabajos/${id}/iniciar`, { method: "POST", ...SERVICIO });
 }
